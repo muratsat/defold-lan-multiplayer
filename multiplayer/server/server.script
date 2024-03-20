@@ -1,3 +1,6 @@
+local p2p_discovery = require "defnet.p2p_discovery"
+local DISCOVERY_PORT = 50000
+
 local tcp_server = require "defnet.tcp_server"
 local PORT = 9189
 
@@ -15,6 +18,8 @@ local function on_client_disconnected(ip, port, client)
 end
 
 function init(self)
+	self.p2p = p2p_discovery.create(DISCOVERY_PORT)
+	self.p2p.broadcast("findme")
 	self.server = tcp_server.create(PORT, on_data, on_client_connected, on_client_disconnected)
 	self.server.start()
 end
@@ -24,5 +29,6 @@ function final(self)
 end
 
 function update(self, dt)
+	self.p2p.update()
 	self.server.update()
 end

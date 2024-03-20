@@ -1,5 +1,7 @@
+local p2p_discovery = require "defnet.p2p_discovery"
+local DISCOVERY_PORT = 50000
+
 local tcp_client = require "defnet.tcp_client"
-local IP = "192.168.1.78" -- perhaps get IP from P2P discovery?
 local PORT = 9189
 
 local function on_disconnected()
@@ -11,16 +13,19 @@ local function on_data(data)
 end
 
 function init(self)
-	self.client = tcp_client.create(IP, PORT, on_data, on_disconnected)
+	self.p2p = p2p_discovery.create(DISCOVERY_PORT)
+	self.p2p.listen("findme", function(ip, port, message)
+		print("Found server", ip, port)
+		print("Message", message)
+		self.p2p.stop()
+		-- TODO: don't autoconnect, but display available servers
+		self.client = tcp_client.create(ip, PORT, on_data, on_disconnected)
+	end)
 end
 
 function update(self, dt)
+	self.p2p.update()
 	if self.client then
 		self.client.update()
 	end
-end
-
-function on_input(self, action_id, action)
-	-- on some condition do:
-	self.client.send("Sending this to the server\n")
 end
