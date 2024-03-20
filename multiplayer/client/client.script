@@ -1,0 +1,26 @@
+local tcp_client = require "defnet.tcp_client"
+local IP = "192.168.1.78" -- perhaps get IP from P2P discovery?
+local PORT = 9189
+
+local function on_disconnected()
+	print("[on_disconnected]", "disconnected")
+end
+
+local function on_data(data)
+	print("[on_data]", data)
+end
+
+function init(self)
+	self.client = tcp_client.create(IP, PORT, on_data, on_disconnected)
+end
+
+function update(self, dt)
+	if self.client then
+		self.client.update()
+	end
+end
+
+function on_input(self, action_id, action)
+	-- on some condition do:
+	self.client.send("Sending this to the server\n")
+end

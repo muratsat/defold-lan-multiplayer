@@ -1,0 +1,47 @@
+local druid = require("druid.druid")
+
+local function on_host_callback(self)
+    msg.post("main:/loader", "load_server")
+    msg.post("#", "hide")
+end
+
+local function on_join_callback(self)
+    msg.post("main:/loader", "load_client")
+    msg.post("#", "hide")
+end
+
+function init(self)
+    self.druid = druid.new(self)
+    self.host_button = self.druid:new_button("host", on_host_callback)
+    self.join_button = self.druid:new_button("join", on_join_callback)
+	self.active = true
+end
+
+-- "final" is a required function for the correct Druid workflow
+function final(self)
+    self.druid:final()
+end
+
+-- "update" is used in progress bar, scroll, and timer basic components
+function update(self, dt)
+    self.druid:update(dt)
+end
+
+-- "on_message" is used for specific Druid events, like language change or layout change
+function on_message(self, message_id, message, sender)
+    self.druid:on_message(message_id, message, sender)
+
+    if message_id == hash("show") then                     -- [2]
+        msg.post("#", "enable")
+        self.active = true
+    elseif message_id == hash("hide") then                 -- [3]
+        msg.post("#", "disable")
+        self.active = false
+    end
+end
+
+-- "on_input" is used in almost all Druid components
+-- The return value from `druid:on_input` is required!
+function on_input(self, action_id, action)
+    return self.druid:on_input(action_id, action)
+end

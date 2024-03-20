@@ -1,5 +1,7 @@
 [project]
 title = defold-lan-multiplayer
+dependencies#0 = https://github.com/britzl/defnet/archive/master.zip
+dependencies#1 = https://github.com/Insality/druid/archive/refs/tags/0.11.0.zip
 
 [bootstrap]
 main_collection = /main/main.collectionc
