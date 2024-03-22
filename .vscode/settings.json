@@ -28,12 +28,20 @@
     "sprite",
     "json",
     "window",
-    "physics"
+    "physics",
+    "init",
+    "final",
+    "update",
+    "fixed_update",
+    "on_message",
+    "on_input",
+    "on_reload"
   ],
   "Lua.diagnostics.disable": ["lowercase-global", "redefined-local"],
   "Lua.workspace.library": [
     "~/.config/Code/User/globalStorage/astronachos.defold",
-    "~/.config/Code/User/workspaceStorage/e442981f451791283fab1d24a05650ea/astronachos.defold"
+    "~/.config/Code/User/workspaceStorage/e442981f451791283fab1d24a05650ea/astronachos.defold",
+    ".defold/api"
   ],
   "glsllint.additionalStageAssociations": {
     ".fp": "frag",
@@ -74,6 +82,23 @@
     "*.texture_profiles": "textproto",
     "*.tilemap": "textproto",
     "*.tilesource": "textproto",
-    "*.manifest": "textproto"
+    "*.manifest": "textproto",
+    "*.lua_": "lua",
+    "*.appmanifest": "yaml"
+  },
+  "editor.snippetSuggestions": "bottom",
+  "editor.suggest.showKeywords": false,
+  "Lua.workspace.ignoreDir": [".vscode", ".defold/api", "build"],
+  "Lua.diagnostics.ignoredFiles": "Disable",
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/bower_components": true,
+    "**/*.code-search": true,
+    "undefined/**": true,
+    "**/build/**": true,
+    "patches/": true,
+    "**/*.collection": true,
+    "**/*.atlas": true,
+    "**/icon_*.png": true
   }
 }
