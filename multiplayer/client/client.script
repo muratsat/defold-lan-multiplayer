@@ -1,39 +1,3 @@
-local p2p_discovery = require "defnet.p2p_discovery"
-local DISCOVERY_PORT = 50000
-
-local tcp_client = require "defnet.tcp_client"
-local PORT = 9189
-
-
 function init(self)
 	msg.post('.', 'acquire_input_focus')
-	self.p2p = p2p_discovery.create(DISCOVERY_PORT)
-	self.p2p.listen("findme", function(ip, port, message)
-		print("Found server", ip, port)
-		print("Message", message)
-		self.p2p.stop()
-		-- TODO: don't autoconnect, but display available servers
-		self.client = tcp_client.create(ip, PORT, function(data)
-			print("TCP client received data " .. data)
-		end,
-		function()
-			print("On disconnected")
-			self.client = nil
-		end)
-	end)
-end
-
-function update(self, dt)
-	self.p2p.update()
-	if self.client then
-		self.client.update()
-	end
-end
-
-function on_input(self, action_id, action)
-	if action_id == hash('touch') then
-		if self.client then
-			self.client.send("never gonna give you up")
-		end
-	end
 end

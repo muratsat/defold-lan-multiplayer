@@ -1,17 +1,22 @@
 function init(self)
 	msg.post(".", "acquire_input_focus")
 	msg.post("@render:", "use_fixed_fit_projection", { near = -1, far = 1 })
+	self.current_proxy = nil
 end
 
 function on_message(self, message_id, message, sender)
 	if message_id == hash("load_server") then
 		print("load server")
+		self.current_proxy = "loader#server_proxy"
 		msg.post("loader#server_proxy", "load")
 	elseif message_id == hash("load_client") then
 		print("load client")
+		self.current_proxy = "loader#client_proxy"
 		msg.post("loader#client_proxy", "load")
     elseif message_id == hash("proxy_loaded") then              -- [2]
         msg.post(sender, "init")
         msg.post(sender, "enable")
+	elseif message_id == hash("back_to_main") then
+		msg.post(self.current_proxy, "unload")
     end
 end

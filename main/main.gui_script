@@ -10,10 +10,17 @@ local function on_join_callback(self)
     msg.post("#", "hide")
 end
 
+local function on_back_callback()
+	print("back")
+    msg.post("main:/loader", "back_to_main")
+    msg.post("#", "show")
+end
+
 function init(self)
     self.druid = druid.new(self)
     self.host_button = self.druid:new_button("host", on_host_callback)
     self.join_button = self.druid:new_button("join", on_join_callback)
+    self.back_button = self.druid:new_button("back", on_back_callback)
 	self.active = true
 end
 
@@ -32,10 +39,14 @@ function on_message(self, message_id, message, sender)
     self.druid:on_message(message_id, message, sender)
 
     if message_id == hash("show") then                     -- [2]
-        msg.post("#", "enable")
+        -- msg.post("#", "enable")
+        gui.set_enabled(gui.get_node("menu"), true)
+        gui.set_enabled(gui.get_node("back"), false)
         self.active = true
     elseif message_id == hash("hide") then                 -- [3]
-        msg.post("#", "disable")
+        gui.set_enabled(gui.get_node("menu"), false)
+        gui.set_enabled(gui.get_node("back"), true)
+        -- msg.post("#", "disable")
         self.active = false
     end
 end
