@@ -1,66 +1,44 @@
-local tcp_server = require "defnet.tcp_server"
-
-local p2p_discovery = require "defnet.p2p_discovery"
-local DISCOVERY_PORT = 50000
 local druid = require("druid.druid")
-
-local TCP_SERVER_PORT = 6969
 
 local function log(message)
 	print(message)
 	gui.set_text(gui.get_node("label"), message)
 end
 
-local function on_data(data, ip, port, client)
-	log("TCP server received data '" .. data .. "' from " .. ip .. ":" .. port)
-end
-
 function init(self)
 	msg.post(".", "acquire_input_focus")
 
-	self.p2p = p2p_discovery.create(DISCOVERY_PORT)
-	self.p2p.broadcast("findme")
-	self.clients = {}
-
-	self.tcp_server = tcp_server.create(TCP_SERVER_PORT, on_data, 
-		function(ip, port, client)
-			log("Client connected from " .. ip .. ":" .. port)
-			table.insert(self.clients, client)
-		end,
-		function (ip, port, client)
-			log("Client discconnected from " .. ip .. ":" .. port)
-			for i = 1, #self.clients do
-				if self.clients[i] == client then
-					table.remove(self.clients, i)
-				end
-			end
-		end)
-
-	self.tcp_server.start()
+	msg.post("/multiplayer", "register")
 
  	self.druid = druid.new(self)
-	self.send_button = self.druid:new_button("send", function() 
-		log("server gonna let you down")
-		self.tcp_server.broadcast("server gonna let you down " .. tostring(os.time()).. "\n")
+	self.active = false
+	self.start_button = self.druid:new_button("button", function() 
+		if not self.active then
+			msg.post("/multiplayer", "create_server")
+			gui.set_text(gui.get_node("button_label"), "Stop server")
+		else
+			msg.post("/multiplayer", "stop_server")
+			gui.set_text(gui.get_node("button_label"), "Start server")
+			gui.set_text(gui.get_node("label"), "")
+		end
+		self.active = not self.active
 	end)
 end
 
 function final(self)
     self.druid:final()
-	msg.post(".", "release_input_focus")
-	if self.tcp_server then
-		self.tcp_server.stop()
-	end
 end
 
 function update(self, dt)
     self.druid:update(dt)
-	self.p2p.update()
-	if self.tcp_server then
-		self.tcp_server.update()
-	end
 end
 
 function on_input(self, action_id, action)
     return self.druid:on_input(action_id, action)
+end
+
+function on_message(self, message_id, message)
+	if message_id == hash("log") then
+		gui.set_text(gui.get_node("label"), message.data)
+	end
 end

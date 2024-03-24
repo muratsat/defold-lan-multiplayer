@@ -1,0 +1,75 @@
+local tcp_server = require "defnet.tcp_server"
+local tcp_client = require "defnet.tcp_client"
+
+local p2p_discovery = require "defnet.p2p_discovery"
+
+local DISCOVERY_PORT = 50000
+local SERVER_PORT = 6969
+
+local function log(self, message)
+	-- print(message)
+	if self.post_address then
+		msg.post(self.post_address, "log", {data = message})
+	end
+end
+
+function init(self)
+	self.p2p = p2p_discovery.create(DISCOVERY_PORT)
+
+	self.create_server = function ()
+		self.clients = {}
+		log(self, "[multiplayer] creating tcp server")
+		self.server= tcp_server.create(SERVER_PORT,
+			function(data, ip, port, client)
+				log(self, "TCP server received data '" .. data .. "' from " .. ip .. ":" .. port)
+			end,
+			function(ip, port, client)
+				log(self, "Client connected from " .. ip .. ":" .. port)
+				table.insert(self.clients, client)
+			end,
+			function (ip, port, client)
+				log(self, "Client discconnected from " .. ip .. ":" .. port)
+				for i = 1, #self.clients do
+					if self.clients[i] == client then
+						table.remove(self.clients, i)
+					end
+				end
+			end)
+		self.server.start()
+		log(self, "[multiplayer] tcp server started")
+		self.p2p.broadcast("findme")
+	end
+end
+
+function final(self)
+	if self.server then
+		self.server.stop()
+	end
+	if self.client then
+		self.client.destroy()
+	end
+end
+
+function update(self, dt)
+	self.p2p.update()
+	if self.server then
+		self.server.update()
+	end
+	if self.client then
+		self.client.update()
+	end
+end
+
+function on_message(self, message_id, message, sender)
+	if message_id == hash("register") then
+		self.post_address = sender
+	elseif message_id == hash("create_server") then
+		self.create_server()
+	elseif message_id == hash("stop_server") then
+		if self.server then
+			self.server.stop()
+		end
+	elseif message_id == hash("create_client") then
+		-- create client
+	end
+end
