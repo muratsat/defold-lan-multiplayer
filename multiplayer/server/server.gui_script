@@ -11,12 +11,18 @@ function init(self)
 		if not self.active then
 			msg.post("/multiplayer", "start_server")
 			gui.set_text(gui.get_node("button_label"), "Stop server")
+			gui.set_enabled(gui.get_node("broadcast_button"), true)
 		else
 			msg.post("/multiplayer", "stop_server")
 			gui.set_text(gui.get_node("button_label"), "Start server")
 			gui.set_text(gui.get_node("label"), "")
+			gui.set_enabled(gui.get_node("broadcast_button"), false)
 		end
 		self.active = not self.active
+	end)
+
+	self.broadcast_button = self.druid:new_button("broadcast_button", function()
+		msg.post("/multiplayer", "server_broadcast", {data = "server gonna let you down\n"})
 	end)
 end
 

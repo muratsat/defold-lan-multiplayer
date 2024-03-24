@@ -13,7 +13,7 @@ function init(self)
 	end)
 
 	self.send_button = self.druid:new_button("send", function() 
-		print('send')
+		msg.post("/multiplayer", "send_to_server", {data = "client gonna give you up\n"})
 	end)
 	self.buttons = {}
 end
@@ -33,9 +33,11 @@ end
 
 function on_message(self, message_id, message)
 	if message_id == hash("log") then
-		-- gui.set_text(gui.get_node("label"), message.data)
+		gui.set_text(gui.get_node("label"), message.data)
+		if message.data == "Disconnected" then
+			gui.set_enabled(gui.get_node("send"), false)
+		end
 	elseif message_id == hash("ip_discovery") then
-		local servers = ""
 		for k, v in pairs(self.buttons) do 
 			self.druid:remove(v)
 			gui.delete_node(k)
@@ -47,9 +49,14 @@ function on_message(self, message_id, message)
 		for ip, _ in pairs(message.servers) do
 			local prefab = gui.clone_tree(gui.get_node("prefab"))
 			local button = prefab["prefab"]
-			local druid_button = self.druid:new_button(button, function() print("click", ip) end)
+			local druid_button = self.druid:new_button(button, function()
+				print("connecting to", ip)
+				msg.post("/multiplayer", "stop_discovery")
+				msg.post("/multiplayer", "connect", { ip = ip})
+				gui.set_enabled(gui.get_node("server_list"), false)
+				gui.set_enabled(gui.get_node("send"), true)
+			end)
 			local position = gui.get_position(gui.get_node("prefab")) + vmath.vector3(0, -100 * count, 0)
-			print(position)
 
 			gui.set_text(prefab["text"], ip)
 			gui.set_position(button, position)
@@ -58,8 +65,5 @@ function on_message(self, message_id, message)
 			self.buttons[button] = druid_button
 			count = count + 1
 		end
-
-		print("[client_gui]", servers)
-		gui.set_text(gui.get_node("label"), servers)
 	end
 end

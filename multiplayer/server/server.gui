@@ -12,7 +12,7 @@ background_color {
 nodes {
   position {
     x: 320.0
-    y: 800.0
+    y: 950.0
     z: 0.0
     w: 1.0
   }
@@ -186,7 +186,7 @@ nodes {
     w: 1.0
   }
   adjust_mode: ADJUST_MODE_FIT
-  line_break: true
+  line_break: false
   layer: ""
   inherit_alpha: true
   alpha: 1.0
@@ -202,8 +202,8 @@ nodes {
 }
 nodes {
   position {
-    x: 70.0
-    y: 1086.0
+    x: 320.0
+    y: 800.0
     z: 0.0
     w: 1.0
   }
@@ -220,8 +220,8 @@ nodes {
     w: 1.0
   }
   size {
-    x: 100.0
-    y: 60.0
+    x: 200.0
+    y: 70.0
     z: 0.0
     w: 1.0
   }
@@ -234,7 +234,7 @@ nodes {
   type: TYPE_BOX
   blend_mode: BLEND_MODE_ALPHA
   texture: ""
-  id: "back"
+  id: "broadcast_button"
   xanchor: XANCHOR_NONE
   yanchor: YANCHOR_NONE
   pivot: PIVOT_CENTER
@@ -254,7 +254,7 @@ nodes {
   template_node_child: false
   size_mode: SIZE_MODE_MANUAL
   custom_type: 0
-  enabled: true
+  enabled: false
   visible: true
   material: ""
 }
@@ -291,9 +291,9 @@ nodes {
   }
   type: TYPE_TEXT
   blend_mode: BLEND_MODE_ALPHA
-  text: "back"
+  text: "Broadcast"
   font: "default"
-  id: "back_label"
+  id: "button_label1"
   xanchor: XANCHOR_NONE
   yanchor: YANCHOR_NONE
   pivot: PIVOT_CENTER
@@ -311,7 +311,7 @@ nodes {
   }
   adjust_mode: ADJUST_MODE_FIT
   line_break: false
-  parent: "back"
+  parent: "broadcast_button"
   layer: ""
   inherit_alpha: true
   alpha: 1.0

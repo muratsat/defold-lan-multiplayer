@@ -11,7 +11,6 @@ local function post_to_sender(self, message_id, data)
 end
 
 local function log(self, message)
-	print("[multiplayer]", message)
 	if self.post_address then
 		msg.post(self.post_address, "log", {data = message})
 	end
@@ -25,7 +24,7 @@ function init(self)
 		log(self, "[multiplayer] creating tcp server")
 		self.server= tcp_server.create(SERVER_PORT,
 			function(data, ip, port, client)
-				log(self, "TCP server received data '" .. data .. "' from " .. ip .. ":" .. port)
+				log(self, "TCP server received data \n'" .. data .. "'\nfrom " .. ip .. ":" .. port)
 			end,
 			function(ip, port, client)
 				log(self, "Client connected from " .. ip .. ":" .. port)
@@ -48,7 +47,6 @@ function init(self)
 		self.available_servers = {}
 		self.p2p.listen("findme", function(ip, port, message)
 			if self.available_servers[ip] == nil then
-				log(self, "new ip: " .. ip)
 				self.available_servers[ip] = os.time()
 				post_to_sender(self, "ip_discovery", { servers = self.available_servers} )
 			end
@@ -60,13 +58,15 @@ function init(self)
 	self.connect = function(ip)
 		local client, err = tcp_client.create(ip, SERVER_PORT,
 			function(data)
-				log(self, "Received data from " .. ip .. ":\n" .. data)
+				log(self, data)
+				log(self, "TCP client received data \n'" .. data .. "'")
 			end,
 			function()
 				log(self, "Disconnected")
 				self.client = nil
 			end)
 		if client then
+			log(self, "Connected to " .. ip)
 			self.client = client
 		else
 			log(self, "Could not connect" .. err)
@@ -119,6 +119,10 @@ function on_message(self, message_id, message, sender)
 		print("register mp")
 	elseif message_id == hash("start_server") then
 		self.create_server()
+	elseif message_id == hash("server_broadcast") then
+		if self.server then
+			self.server.broadcast(string.gsub(message.data .. '\n', "\n\n", "\n"))
+		end
 	elseif message_id == hash("stop_server") then
 		self.p2p.stop()
 		if self.server then
@@ -126,5 +130,12 @@ function on_message(self, message_id, message, sender)
 		end
 	elseif message_id == hash("find_servers") then
 		self.find_servers()
+	elseif message_id == hash("stop_discovery") then
+		self.listening = false
+		self.p2p.stop()
+	elseif message_id == hash("connect") then
+		self.connect(message.ip)
+	elseif message_id == hash("send_to_server") then
+		self.client.send(string.gsub(message.data .. '\n', "\n\n", "\n"))
 	end
 end
