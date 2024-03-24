@@ -6,8 +6,12 @@ local p2p_discovery = require "defnet.p2p_discovery"
 local DISCOVERY_PORT = 50000
 local SERVER_PORT = 6969
 
+local function post_to_sender(self, message_id, data)
+	msg.post(self.post_address, message_id, data)
+end
+
 local function log(self, message)
-	-- print(message)
+	print("[multiplayer]", message)
 	if self.post_address then
 		msg.post(self.post_address, "log", {data = message})
 	end
@@ -39,9 +43,40 @@ function init(self)
 		log(self, "[multiplayer] tcp server started")
 		self.p2p.broadcast("findme")
 	end
+
+	self.find_servers = function()
+		self.available_servers = {}
+		self.p2p.listen("findme", function(ip, port, message)
+			if self.available_servers[ip] == nil then
+				log(self, "new ip: " .. ip)
+				self.available_servers[ip] = os.time()
+				post_to_sender(self, "ip_discovery", { servers = self.available_servers} )
+			end
+			self.available_servers[ip] = os.time()
+		end)
+		self.listening = true
+	end
+
+	self.connect = function(ip)
+		local client, err = tcp_client.create(ip, SERVER_PORT,
+			function(data)
+				log(self, "Received data from " .. ip .. ":\n" .. data)
+			end,
+			function()
+				log(self, "Disconnected")
+				self.client = nil
+			end)
+		if client then
+			self.client = client
+		else
+			log(self, "Could not connect" .. err)
+		end
+	end
+
 end
 
 function final(self)
+	self.p2p.stop()
 	if self.server then
 		self.server.stop()
 	end
@@ -58,18 +93,37 @@ function update(self, dt)
 	if self.client then
 		self.client.update()
 	end
+	if self.listening then
+		local max_seconds = 2
+		local changed = false
+		for ip, updated_at in pairs(self.available_servers) do
+			if os.time() - updated_at >= max_seconds then
+				self.available_servers[ip] = nil
+				changed = true
+			end
+		end
+		if changed then
+			print("[UPDATE]")
+			for ip, updated_at in pairs(self.available_servers) do
+				print(ip, updated_at)
+			end
+			post_to_sender(self, "ip_discovery", { servers = self.available_servers })
+		end
+	end
 end
 
 function on_message(self, message_id, message, sender)
 	if message_id == hash("register") then
 		self.post_address = sender
-	elseif message_id == hash("create_server") then
+		print("register mp")
+	elseif message_id == hash("start_server") then
 		self.create_server()
 	elseif message_id == hash("stop_server") then
+		self.p2p.stop()
 		if self.server then
 			self.server.stop()
 		end
-	elseif message_id == hash("create_client") then
-		-- create client
+	elseif message_id == hash("find_servers") then
+		self.find_servers()
 	end
 end

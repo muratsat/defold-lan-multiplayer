@@ -1,10 +1,5 @@
 local druid = require("druid.druid")
 
-local function log(message)
-	print(message)
-	gui.set_text(gui.get_node("label"), message)
-end
-
 function init(self)
 	msg.post(".", "acquire_input_focus")
 
@@ -14,7 +9,7 @@ function init(self)
 	self.active = false
 	self.start_button = self.druid:new_button("button", function() 
 		if not self.active then
-			msg.post("/multiplayer", "create_server")
+			msg.post("/multiplayer", "start_server")
 			gui.set_text(gui.get_node("button_label"), "Stop server")
 		else
 			msg.post("/multiplayer", "stop_server")

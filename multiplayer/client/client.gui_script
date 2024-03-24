@@ -1,83 +1,44 @@
-local tcp_client = require "defnet.tcp_client"
-
-local p2p_discovery = require "defnet.p2p_discovery"
-local DISCOVERY_PORT = 50000
 local druid = require("druid.druid")
-
-local SERVER_PORT = 6969
-
-local function log(message)
-	print(message)
-	gui.set_text(gui.get_node("label"), message)
-end
 
 function init(self)
 	msg.post(".", "acquire_input_focus")
 
-	self.connect = function(ip)
-		local client, err = tcp_client.create(ip, SERVER_PORT,
-			function(data)
-				log("Received data from " .. ip .. ":\n" .. data)
-			end,
-			function()
-				self.client = nil
-				log("")
-				gui.set_text(gui.get_node("ip_label"), "Disconnected")
-				gui.set_enabled(gui.get_node("send"), false)
-				gui.set_text(gui.get_node("find_label"), "Find")
-				gui.set_enabled(gui.get_node("find"), true)
-			end)
-		if client then
-			self.client = client
-			gui.set_text(gui.get_node("ip_label"), "Connected " .. ip)
-			gui.set_enabled(gui.get_node("send"), true)
-		else
-			gui.set_enabled(gui.get_node("send"), false)
-			log("Could not connect" .. err)
-		end
-	end
-
-	self.p2p = p2p_discovery.create(DISCOVERY_PORT)
-	self.find_server = function()
-		self.p2p.stop()
-		self.p2p.listen("findme",
-			function(ip, port, message)
-				log("Found server " .. ip)
-				self.connect(ip)
-				self.p2p.stop()
-				gui.set_enabled(gui.get_node("find"), false)
-			end)
-	end
+	msg.post("/multiplayer", "register")
 
  	self.druid = druid.new(self)
 	self.find_button = self.druid:new_button("find", function() 
 		gui.set_text(gui.get_node("find_label"), "Searching...")
-		self.find_server()
+		msg.post("/multiplayer", "find_servers")
+		gui.set_enabled(gui.get_node("find"), false)
 	end)
+
 	self.send_button = self.druid:new_button("send", function() 
-		if self.client then
-			log("client gonna give you up")
-			self.client.send("client gonna give you up " .. tostring(os.time()).. "\n")
-		end
+		print('send')
 	end)
 end
 
 function final(self)
 	self.druid:final()
 	msg.post(".", "release_input_focus")
-	if self.client then
-		self.client.destroy()
-	end
 end
 
 function update(self, dt)
     self.druid:update(dt)
-	self.p2p.update()
-	if self.client then
-		self.client.update()
-	end
 end
 
 function on_input(self, action_id, action)
     return self.druid:on_input(action_id, action)
+end
+
+function on_message(self, message_id, message)
+	if message_id == hash("log") then
+		-- gui.set_text(gui.get_node("label"), message.data)
+	elseif message_id == hash("ip_discovery") then
+		local servers = ""
+		for ip, updated_at in pairs(message.servers) do
+			servers = servers .. ip .. "\n"
+		end
+		print("[client_gui]", servers)
+		gui.set_text(gui.get_node("label"), servers)
+	end
 end
