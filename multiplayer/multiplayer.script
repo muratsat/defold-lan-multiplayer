@@ -76,6 +76,7 @@ function init(self)
 end
 
 function final(self)
+	print("stopping multiplayer")
 	self.p2p.stop()
 	if self.server then
 		self.server.stop()

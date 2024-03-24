@@ -15,6 +15,7 @@ function init(self)
 	self.send_button = self.druid:new_button("send", function() 
 		print('send')
 	end)
+	self.buttons = {}
 end
 
 function final(self)
@@ -35,9 +36,29 @@ function on_message(self, message_id, message)
 		-- gui.set_text(gui.get_node("label"), message.data)
 	elseif message_id == hash("ip_discovery") then
 		local servers = ""
-		for ip, updated_at in pairs(message.servers) do
-			servers = servers .. ip .. "\n"
+		for k, v in pairs(self.buttons) do 
+			self.druid:remove(v)
+			gui.delete_node(k)
+			self.buttons[k] = nil
 		end
+
+		local count = 0
+
+		for ip, _ in pairs(message.servers) do
+			local prefab = gui.clone_tree(gui.get_node("prefab"))
+			local button = prefab["prefab"]
+			local druid_button = self.druid:new_button(button, function() print("click", ip) end)
+			local position = gui.get_position(gui.get_node("prefab")) + vmath.vector3(0, -100 * count, 0)
+			print(position)
+
+			gui.set_text(prefab["text"], ip)
+			gui.set_position(button, position)
+			gui.set_enabled(button, true)
+
+			self.buttons[button] = druid_button
+			count = count + 1
+		end
+
 		print("[client_gui]", servers)
 		gui.set_text(gui.get_node("label"), servers)
 	end
