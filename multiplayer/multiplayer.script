@@ -24,14 +24,21 @@ function init(self)
 		log(self, "[multiplayer] creating tcp server")
 		self.server= tcp_server.create(SERVER_PORT,
 			function(data, ip, port, client)
-				log(self, "TCP server received data \n'" .. data .. "'\nfrom " .. ip .. ":" .. port)
+				-- log(self, "TCP server received data \n'" .. data .. "'\nfrom " .. ip .. ":" .. port)
+				local ok, data = pcall(json.decode, data)
+				if ok then
+					-- print(dump(data))
+					post_to_sender(self, "analog", {type = "analog", from = ip, data = data})
+				end
 			end,
 			function(ip, port, client)
 				log(self, "Client connected from " .. ip .. ":" .. port)
+				post_to_sender(self, "create_player", {ip = ip})
 				table.insert(self.clients, client)
 			end,
 			function (ip, port, client)
 				log(self, "Client discconnected from " .. ip .. ":" .. port)
+				post_to_sender(self, "remove_player", {ip = ip})
 				for i = 1, #self.clients do
 					if self.clients[i] == client then
 						table.remove(self.clients, i)
@@ -113,6 +120,34 @@ function update(self, dt)
 	end
 end
 
+---@param message_string string
+local function rate_limited_send(self, message_string)
+	local max_diff = 0.01
+	local diff = max_diff
+	if self.last_sent_time == nil then
+		self.last_sent_time = os.clock()
+	else
+		local now = os.clock()
+		diff = now - self.last_sent_time
+		if diff >= max_diff then
+			self.last_sent_time = now
+			self.client.send(string.gsub(message_string .. '\n', "\n\n", "\n"))
+		end
+	end
+end
+
+local function handle_send_to_server(self, message)
+	local json_data = json.encode(message.data)
+	local formatted_string = string.gsub(json_data .. '\n', "\n\n", "\n")
+	
+	local is_analog_end = message.type == "analog" and message.data.x == 0 and message.data.y == 0
+	if is_analog_end then
+		self.client.send(formatted_string)
+	else
+		rate_limited_send(self, formatted_string)
+	end
+end
+
 function on_message(self, message_id, message, sender)
 	if message_id == hash("register") then
 		self.post_address = sender
@@ -136,6 +171,19 @@ function on_message(self, message_id, message, sender)
 	elseif message_id == hash("connect") then
 		self.connect(message.ip)
 	elseif message_id == hash("send_to_server") then
-		self.client.send(string.gsub(message.data .. '\n', "\n\n", "\n"))
+		handle_send_to_server(self, message)
 	end
+end
+
+function dump(o)
+   if type(o) == 'table' then
+      local s = '{ '
+      for k,v in pairs(o) do
+         if type(k) ~= 'number' then k = '"'..k..'"' end
+         s = s .. '['..k..'] = ' .. dump(v) .. ','
+      end
+      return s .. '} '
+   else
+      return tostring(o)
+   end
 end

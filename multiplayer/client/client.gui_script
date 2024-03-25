@@ -4,6 +4,7 @@ function init(self)
 	msg.post(".", "acquire_input_focus")
 
 	msg.post("/multiplayer", "register")
+	msg.post("/virtual_gamepad", "register")
 
  	self.druid = druid.new(self)
 	self.find_button = self.druid:new_button("find", function() 
@@ -12,9 +13,6 @@ function init(self)
 		gui.set_enabled(gui.get_node("find"), false)
 	end)
 
-	self.send_button = self.druid:new_button("send", function() 
-		msg.post("/multiplayer", "send_to_server", {data = "client gonna give you up\n"})
-	end)
 	self.buttons = {}
 end
 
@@ -36,6 +34,7 @@ function on_message(self, message_id, message)
 		gui.set_text(gui.get_node("label"), message.data)
 		if message.data == "Disconnected" then
 			gui.set_enabled(gui.get_node("send"), false)
+			msg.post("/virtual_gamepad", "disable")
 		end
 	elseif message_id == hash("ip_discovery") then
 		for k, v in pairs(self.buttons) do 
@@ -53,8 +52,8 @@ function on_message(self, message_id, message)
 				print("connecting to", ip)
 				msg.post("/multiplayer", "stop_discovery")
 				msg.post("/multiplayer", "connect", { ip = ip})
+				msg.post("/virtual_gamepad", "enable")
 				gui.set_enabled(gui.get_node("server_list"), false)
-				gui.set_enabled(gui.get_node("send"), true)
 			end)
 			local position = gui.get_position(gui.get_node("prefab")) + vmath.vector3(0, -100 * count, 0)
 
@@ -65,5 +64,7 @@ function on_message(self, message_id, message)
 			self.buttons[button] = druid_button
 			count = count + 1
 		end
+	elseif message_id == hash("analog") then
+		msg.post("/multiplayer", "send_to_server", {type = "analog", data = message})
 	end
 end

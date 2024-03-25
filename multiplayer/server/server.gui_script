@@ -24,6 +24,8 @@ function init(self)
 	self.broadcast_button = self.druid:new_button("broadcast_button", function()
 		msg.post("/multiplayer", "server_broadcast", {data = "server gonna let you down\n"})
 	end)
+
+	self.players = {}
 end
 
 function final(self)
@@ -41,5 +43,26 @@ end
 function on_message(self, message_id, message)
 	if message_id == hash("log") then
 		gui.set_text(gui.get_node("label"), message.data)
+
+	elseif message_id == hash("analog") then
+		local player = self.players[message.from]
+		local position = gui.get_position(player)
+		local speed = 10
+		position.x = position.x + message.data.x * speed
+		position.y = position.y + message.data.y * speed
+		gui.set_position(player, position)
+
+	elseif message_id == hash("remove_player") then
+		local player = self.players[message.ip]
+		gui.delete_node(player)
+		self.players[message.ip] = nil
+
+	elseif message_id == hash("create_player") then
+		local prefab = gui.clone_tree(gui.get_node("player"))
+		local player = prefab["player"]
+		gui.set_position(player, vmath.vector3(320, 500, 0))
+		gui.set_enabled(player, true)
+		gui.set_text(prefab["player_ip"], message.ip)
+		self.players[message.ip] = player
 	end
 end
