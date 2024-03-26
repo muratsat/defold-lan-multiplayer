@@ -1,0 +1,34 @@
+function init(self)
+	self.players = {}
+	self.player_node = {}
+end
+
+function final(self)
+	for _, node in pairs(self.player_node) do
+		go.delete(node)
+	end
+end
+
+function on_message(self, message_id, message)
+	if message_id == hash("create_player") then
+		print("create player", message.ip)
+		local position = vmath.vector3(568, 320, 0)
+		self.players[message.ip] = {
+			position = position
+		}
+		local node_id = factory.create("#player_factory", position)
+		self.player_node[message.ip] = node_id
+
+	elseif message_id == hash("remove_player") then
+		print("remove player", message.ip)
+		go.delete(self.player_node[message.ip])
+		self.players[message.ip] = nil
+
+	elseif message_id == hash("move_player") then
+		local player = self.players[message.player]
+		local node_id = self.player_node[message.player]
+		if player and node_id and message.data.x and message.data.y then
+			msg.post(node_id, "move", message.data)
+		end
+	end
+end

@@ -20,5 +20,7 @@ function on_message(self, message_id, message)
 	elseif message_id == hash("disconnected") then
 		msg.post("virtual_gamepad", "set_enabled", { enabled = false })
 		msg.post("gui", "disconnected", message)
+	elseif message_id == hash("log") then
+		msg.post("gui", "log", { data = message.data})
 	end
 end

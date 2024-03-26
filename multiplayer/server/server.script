@@ -3,47 +3,57 @@ function init(self)
 	msg.post("multiplayer", "register")
 
 	self.players = {}
+	self.player_node = {}
 
 	timer.delay(0.2, true, function()
-		local msg = "broadcast all data "
 		for player_ip, _ in pairs(self.players) do
-			local node_id = self.players[player_ip].node_id
+			local node_id = self.player_node[player_ip]
 			self.players[player_ip].position = go.get_position(node_id)
 			local player_json = json.encode(self.players[player_ip])
-			msg = msg .. player_ip .. ": " .. player_json
 		end
-		print(msg)
+		msg.post("multiplayer", "server_broadcast", { data = json.encode(self.players) })
 	end)
 end
 
 function on_message(self, message_id, message)
 	if message_id == hash("start_server") then
 		msg.post("multiplayer", "start_server")
-
+		local game_state = factory.create("factory#factory", vmath.vector3(568, 320, 0))
+		self.game_state = game_state
 	elseif message_id == hash("stop_server") then
 		msg.post("multiplayer", "stop_server")
-
+		if self.game_state then
+			go.delete(self.game_state)
+		end
 	elseif message_id == hash("create_player") then
-		print("create player", message.ip)
-		local position = vmath.vector3(320, 500, 0)
-		local node_id = factory.create("factory#factory", position)
-		self.players[message.ip] = {
-			node_id = node_id,
-			position = position
-		}
-
+		if self.game_state then
+			msg.post(self.game_state, "create_player", { ip = message.ip })
+		end
 	elseif message_id == hash("remove_player") then
-		print("remove player", message.ip)
-		go.delete(self.players[message.ip].node_id)
-		self.players[message.ip] = nil
-
+		if self.game_state then
+			msg.post(self.game_state, "remove_player", { ip = message.ip })
+		end
 	elseif message_id == hash("server_tcp_data") then
 		local ok, data = pcall(json.decode, message.data)
 		if ok then
-			local player = self.players[message.from]
-			if player and data.x and data.y then
-				msg.post(player.node_id, "move", data)
-			end
+			msg.post(self.game_state, "move_player", { player = message.from, data = data })
+			-- local player = self.players[message.from]
+			-- if player and data.x and data.y then
+			-- 	msg.post(player.node_id, "move", {ip = message.from, data = data})
+			-- end
 		end
 	end
+end
+
+function dump(o)
+   if type(o) == 'table' then
+      local s = '{ '
+      for k,v in pairs(o) do
+         if type(k) ~= 'number' then k = '"'..k..'"' end
+         s = s .. '['..k..'] = ' .. dump(v) .. ','
+      end
+      return s .. '} '
+   else
+      return tostring(o)
+   end
 end

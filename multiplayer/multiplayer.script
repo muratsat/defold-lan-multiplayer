@@ -66,7 +66,6 @@ function init(self)
 	self.connect = function(ip)
 		local client, err = tcp_client.create(ip, SERVER_PORT,
 			function(data)
-				log(self, data)
 				log(self, "TCP client received data \n'" .. data .. "'")
 			end,
 			function()

@@ -64,5 +64,7 @@ function on_message(self, message_id, message)
 		end
 	elseif message_id == hash("disconnected") then
 		gui.set_text(gui.get_node("label"), "Disconnected")
+	elseif message_id == hash("log") then
+		gui.set_text(gui.get_node("label"), message.data)
 	end
 end
