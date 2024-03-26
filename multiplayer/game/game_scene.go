@@ -1,6 +1,6 @@
 components {
   id: "game"
-  component: "/multiplayer/game/game.script"
+  component: "/multiplayer/game/game_scene.script"
   position {
     x: 0.0
     y: 0.0

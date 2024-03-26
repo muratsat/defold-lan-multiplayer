@@ -1,10 +1,22 @@
+local game_state = require "multiplayer.game.game_state"
+
 function init(self)
+	self.game_state = game_state.create()
 	self.players = {}
 	self.player_node = {}
 end
 
+function update(self, dt)
+	for ip, _ in pairs(self.players) do
+		self.players[ip] = go.get_position(self.player_node[ip])
+	end
+	if self.is_server then
+		self.game_state.set_state(self.players)
+	end
+end
+
 function final(self)
-	for _, node in pairs(self.player_node) do
+	for ip, node in pairs(self.player_node) do
 		go.delete(node)
 	end
 end
@@ -23,6 +35,7 @@ function on_message(self, message_id, message)
 		print("remove player", message.ip)
 		go.delete(self.player_node[message.ip])
 		self.players[message.ip] = nil
+		self.player_node[message.ip] = nil
 
 	elseif message_id == hash("move_player") then
 		local player = self.players[message.player]
@@ -30,5 +43,8 @@ function on_message(self, message_id, message)
 		if player and node_id and message.data.x and message.data.y then
 			msg.post(node_id, "move", message.data)
 		end
+	
+	elseif message_id == hash("set_server") then
+		self.is_server = true
 	end
 end

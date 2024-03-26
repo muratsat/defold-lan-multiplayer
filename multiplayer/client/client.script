@@ -8,18 +8,23 @@ end
 function on_message(self, message_id, message)
 	if message_id == hash("find_servers") then
 		msg.post("multiplayer", "find_servers")
+
 	elseif message_id == hash("ip_discovery") then
 		msg.post("gui", "ip_discovery", message)
+
 	elseif message_id == hash("connect") then
 		print("connecting to", message.ip)
 		msg.post("multiplayer", "stop_discovery")
 		msg.post("multiplayer", "connect", { ip = message.ip })
 		msg.post("virtual_gamepad", "set_enabled", { enabled = true })
+
 	elseif message_id == hash("analog") then
 		msg.post("multiplayer", "send_to_server", {type = "analog", data = message})
+
 	elseif message_id == hash("disconnected") then
 		msg.post("virtual_gamepad", "set_enabled", { enabled = false })
 		msg.post("gui", "disconnected", message)
+
 	elseif message_id == hash("log") then
 		msg.post("gui", "log", { data = message.data})
 	end
