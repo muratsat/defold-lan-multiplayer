@@ -11,6 +11,7 @@ local function post_to_sender(self, message_id, data)
 end
 
 local function log(self, message)
+	print("[MULTIPLAYER]", message)
 	if self.post_address then
 		msg.post(self.post_address, "log", {data = message})
 	end
@@ -24,12 +25,12 @@ function init(self)
 		log(self, "[multiplayer] creating tcp server")
 		self.server= tcp_server.create(SERVER_PORT,
 			function(data, ip, port, client)
-				-- log(self, "TCP server received data \n'" .. data .. "'\nfrom " .. ip .. ":" .. port)
-				local ok, data = pcall(json.decode, data)
-				if ok then
-					-- print(dump(data))
-					post_to_sender(self, "analog", {type = "analog", from = ip, data = data})
-				end
+				-- log(self, "TCP server received data '" .. data .. "' from " .. ip .. ":" .. port)
+				post_to_sender(self, "server_tcp_data", {from = ip, data = data})
+				-- local ok, data = pcall(json.decode, data)
+				-- if ok then
+				-- 	post_to_sender(self, "server_tcp_data", {from = ip, data = data})
+				-- end
 			end,
 			function(ip, port, client)
 				log(self, "Client connected from " .. ip .. ":" .. port)
@@ -46,7 +47,7 @@ function init(self)
 				end
 			end)
 		self.server.start()
-		log(self, "[multiplayer] tcp server started")
+		log(self, "tcp server started")
 		self.p2p.broadcast("findme")
 	end
 

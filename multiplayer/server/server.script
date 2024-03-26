@@ -1,3 +1,49 @@
 function init(self)
 	msg.post('.', 'acquire_input_focus')
+	msg.post("multiplayer", "register")
+
+	self.players = {}
+
+	timer.delay(0.2, true, function()
+		local msg = "broadcast all data "
+		for player_ip, _ in pairs(self.players) do
+			local node_id = self.players[player_ip].node_id
+			self.players[player_ip].position = go.get_position(node_id)
+			local player_json = json.encode(self.players[player_ip])
+			msg = msg .. player_ip .. ": " .. player_json
+		end
+		print(msg)
+	end)
+end
+
+function on_message(self, message_id, message)
+	if message_id == hash("start_server") then
+		msg.post("multiplayer", "start_server")
+
+	elseif message_id == hash("stop_server") then
+		msg.post("multiplayer", "stop_server")
+
+	elseif message_id == hash("create_player") then
+		print("create player", message.ip)
+		local position = vmath.vector3(320, 500, 0)
+		local node_id = factory.create("factory#factory", position)
+		self.players[message.ip] = {
+			node_id = node_id,
+			position = position
+		}
+
+	elseif message_id == hash("remove_player") then
+		print("remove player", message.ip)
+		go.delete(self.players[message.ip].node_id)
+		self.players[message.ip] = nil
+
+	elseif message_id == hash("server_tcp_data") then
+		local ok, data = pcall(json.decode, message.data)
+		if ok then
+			local player = self.players[message.from]
+			if player and data.x and data.y then
+				msg.post(player.node_id, "move", data)
+			end
+		end
+	end
 end

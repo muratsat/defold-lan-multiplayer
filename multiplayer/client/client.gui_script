@@ -33,7 +33,6 @@ function on_message(self, message_id, message)
 	if message_id == hash("log") then
 		gui.set_text(gui.get_node("label"), message.data)
 		if message.data == "Disconnected" then
-			gui.set_enabled(gui.get_node("send"), false)
 			msg.post("/virtual_gamepad", "disable")
 		end
 	elseif message_id == hash("ip_discovery") then
