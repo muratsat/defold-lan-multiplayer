@@ -1,5 +1,18 @@
 local game_state = require "multiplayer.game.game_state"
 
+local function create_player(self, ip, position)
+	print("create player", ip)
+	local default_position = vmath.vector3(568, 320, 0)
+	if position == nil then
+		position = default_position
+	end
+	self.players[ip] = {
+		position = position
+	}
+	local node_id = factory.create("#player_factory", position)
+	self.player_node[ip] = node_id
+end
+
 function init(self)
 	self.game_state = game_state.create()
 	self.players = {}
@@ -7,11 +20,26 @@ function init(self)
 end
 
 function update(self, dt)
-	for ip, _ in pairs(self.players) do
-		self.players[ip] = go.get_position(self.player_node[ip])
-	end
 	if self.is_server then
+		for ip, _ in pairs(self.players) do
+			local position =  go.get_position(self.player_node[ip])
+			self.players[ip] = {
+				x = position.x,
+				y = position.y,
+				z = position.z
+			}
+		end
 		self.game_state.set_state(self.players)
+		return
+	end
+
+	for ip, p in pairs(self.game_state.current_state()) do
+		local position = vmath.vector3(p.x, p.y, p.z)
+		if self.player_node[ip] == nil then
+			create_player(self, ip, position)
+		else
+			msg.post(self.player_node[ip], "set_position", {data = position})
+		end
 	end
 end
 
@@ -23,13 +51,7 @@ end
 
 function on_message(self, message_id, message)
 	if message_id == hash("create_player") then
-		print("create player", message.ip)
-		local position = vmath.vector3(568, 320, 0)
-		self.players[message.ip] = {
-			position = position
-		}
-		local node_id = factory.create("#player_factory", position)
-		self.player_node[message.ip] = node_id
+		create_player(self, message.ip, message.position)
 
 	elseif message_id == hash("remove_player") then
 		print("remove player", message.ip)

@@ -13,20 +13,22 @@ end
 local function log(self, message)
 	print("[MULTIPLAYER]", message)
 	if self.post_address then
-		msg.post(self.post_address, "log", {data = message})
+		msg.post(self.post_address, "log", { data = message })
 	end
 end
 
 function init(self)
 	self.p2p = p2p_discovery.create(DISCOVERY_PORT)
 
-	self.create_server = function ()
+	self.clients = {}
+
+	self.create_server = function()
 		self.clients = {}
 		log(self, "[multiplayer] creating tcp server")
-		self.server= tcp_server.create(SERVER_PORT,
+		self.server = tcp_server.create(SERVER_PORT,
 			function(data, ip, port, client)
 				-- log(self, "TCP server received data '" .. data .. "' from " .. ip .. ":" .. port)
-				post_to_sender(self, "server_tcp_data", {from = ip, data = data})
+				post_to_sender(self, "server_tcp_data", { from = ip, data = data })
 				-- local ok, data = pcall(json.decode, data)
 				-- if ok then
 				-- 	post_to_sender(self, "server_tcp_data", {from = ip, data = data})
@@ -34,7 +36,8 @@ function init(self)
 			end,
 			function(ip, port, client)
 				log(self, "Client connected from " .. ip .. ":" .. port)
-				post_to_sender(self, "create_player", {ip = ip})
+				self.clients[ip] = client
+				post_to_sender(self, "create_player", { ip = ip })
 				table.insert(self.clients, client)
 			end,
 			function (ip, port, client)
@@ -56,7 +59,7 @@ function init(self)
 		self.p2p.listen("findme", function(ip, port, message)
 			if self.available_servers[ip] == nil then
 				self.available_servers[ip] = os.time()
-				post_to_sender(self, "ip_discovery", { servers = self.available_servers} )
+				post_to_sender(self, "ip_discovery", { servers = self.available_servers })
 			end
 			self.available_servers[ip] = os.time()
 		end)
@@ -66,7 +69,7 @@ function init(self)
 	self.connect = function(ip)
 		local client, err = tcp_client.create(ip, SERVER_PORT,
 			function(data)
-				log(self, "TCP client received data \n'" .. data .. "'")
+				post_to_sender(self, "received_from_server", { data = data })
 			end,
 			function()
 				log(self, "Disconnected")
@@ -80,7 +83,6 @@ function init(self)
 			log(self, "Could not connect" .. err)
 		end
 	end
-
 end
 
 function final(self)
@@ -141,7 +143,7 @@ end
 local function handle_send_to_server(self, message)
 	local json_data = json.encode(message.data)
 	local formatted_string = string.gsub(json_data .. '\n', "\n\n", "\n")
-	
+
 	local is_analog_end = message.type == "analog" and message.data.x == 0 and message.data.y == 0
 	if is_analog_end then
 		self.client.send(formatted_string)
@@ -159,6 +161,11 @@ function on_message(self, message_id, message, sender)
 	elseif message_id == hash("server_broadcast") then
 		if self.server then
 			self.server.broadcast(string.gsub(message.data .. '\n', "\n\n", "\n"))
+		end
+	elseif message_id == hash("server_send_to_client") then
+		self.server.broadcast(string.gsub(message.data .. '\n', "\n\n", "\n"))
+		if self.clients[message.ip] then
+			self.server.send(string.gsub(message.data .. '\n', "\n\n", "\n"), self.clients[message.ip])
 		end
 	elseif message_id == hash("stop_server") then
 		self.p2p.stop()
@@ -178,14 +185,14 @@ function on_message(self, message_id, message, sender)
 end
 
 function dump(o)
-   if type(o) == 'table' then
-      local s = '{ '
-      for k,v in pairs(o) do
-         if type(k) ~= 'number' then k = '"'..k..'"' end
-         s = s .. '['..k..'] = ' .. dump(v) .. ','
-      end
-      return s .. '} '
-   else
-      return tostring(o)
-   end
+	if type(o) == 'table' then
+		local s = '{ '
+		for k, v in pairs(o) do
+			if type(k) ~= 'number' then k = '"' .. k .. '"' end
+			s = s .. '[' .. k .. '] = ' .. dump(v) .. ','
+		end
+		return s .. '} '
+	else
+		return tostring(o)
+	end
 end

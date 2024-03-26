@@ -32,5 +32,11 @@ function on_message(self, message_id, message, sender)
 		local acceleration_factor = 500
 		self.speed.x = message.x * acceleration_factor
 		self.speed.y = message.y * acceleration_factor
+	elseif message_id == hash("set_position") then
+		local position = go.get_position()
+		position.x = message.data.x
+		position.y = message.data.y
+		position.z = message.data.z
+		go.set_position(position)
 	end
 end

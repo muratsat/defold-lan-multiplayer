@@ -1,8 +1,12 @@
+local game_state = require "multiplayer.game.game_state"
+
 function init(self)
 	msg.post('.', 'acquire_input_focus')
 
 	msg.post("multiplayer", "register")
 	msg.post("virtual_gamepad", "register")
+
+	self.game_state = game_state.create()
 end
 
 function on_message(self, message_id, message)
@@ -17,6 +21,8 @@ function on_message(self, message_id, message)
 		msg.post("multiplayer", "stop_discovery")
 		msg.post("multiplayer", "connect", { ip = message.ip })
 		msg.post("virtual_gamepad", "set_enabled", { enabled = true })
+		local game_scene = factory.create("factory#factory", vmath.vector3(568, 320, 0))
+		self.game_scene = game_scene
 
 	elseif message_id == hash("analog") then
 		msg.post("multiplayer", "send_to_server", {type = "analog", data = message})
@@ -24,6 +30,24 @@ function on_message(self, message_id, message)
 	elseif message_id == hash("disconnected") then
 		msg.post("virtual_gamepad", "set_enabled", { enabled = false })
 		msg.post("gui", "disconnected", message)
+		if self.game_scene then
+			go.delete(self.game_scene)
+		end
+
+	elseif message_id == hash("received_from_server") then
+		-- print("received:", message.data)
+		local ok, data = pcall(json.decode, message.data)
+		if ok then
+			if data.type == "initial_state" then
+				self.game_state.set_state(data.state)
+			elseif data.type == "state_update" then
+				self.game_state.set_state(data.state)
+			elseif data.type == "create_player" then
+				msg.post(self.game_scene, "create_player", { ip = data.ip })
+			elseif data.type == "remove_player" then
+				msg.post(self.game_scene, "remove_player", { ip = data.ip })
+			end
+		end
 
 	elseif message_id == hash("log") then
 		msg.post("gui", "log", { data = message.data})

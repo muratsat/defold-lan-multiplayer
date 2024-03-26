@@ -17,7 +17,9 @@ function M.create()
     end
 
     function instance.set_state(players)
-        state.players = players
+        if players ~= nil then
+            state.players = players
+        end
     end
 
     return instance
