@@ -10,6 +10,7 @@ function init(self)
 	self.find_button = self.druid:new_button("find", function()
 		msg.post("client", "find_servers")
 		gui.set_enabled(gui.get_node("find"), false)
+		gui.set_enabled(gui.get_node("server_list"), true)
 	end)
 
 	self.buttons = {}
@@ -61,5 +62,7 @@ function on_message(self, message_id, message)
 			add_server_button(self, ip, count)
 			count = count + 1
 		end
+	elseif message_id == hash("disconnected") then
+		gui.set_text(gui.get_node("label"), "Disconnected")
 	end
 end

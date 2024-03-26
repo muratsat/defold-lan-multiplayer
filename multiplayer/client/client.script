@@ -17,5 +17,8 @@ function on_message(self, message_id, message)
 		msg.post("virtual_gamepad", "set_enabled", { enabled = true })
 	elseif message_id == hash("analog") then
 		msg.post("multiplayer", "send_to_server", {type = "analog", data = message})
+	elseif message_id == hash("disconnected") then
+		msg.post("virtual_gamepad", "set_enabled", { enabled = false })
+		msg.post("gui", "disconnected", message)
 	end
 end

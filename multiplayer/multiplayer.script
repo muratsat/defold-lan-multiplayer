@@ -71,6 +71,7 @@ function init(self)
 			end,
 			function()
 				log(self, "Disconnected")
+				post_to_sender(self, "disconnected")
 				self.client = nil
 			end)
 		if client then

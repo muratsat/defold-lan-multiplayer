@@ -137,7 +137,7 @@ nodes {
 nodes {
   position {
     x: 568.0
-    y: 400.0
+    y: 444.0
     z: 0.0
     w: 1.0
   }
@@ -155,7 +155,7 @@ nodes {
   }
   size {
     x: 200.0
-    y: 100.0
+    y: 300.0
     z: 0.0
     w: 1.0
   }
@@ -171,7 +171,7 @@ nodes {
   id: "server_list"
   xanchor: XANCHOR_NONE
   yanchor: YANCHOR_NONE
-  pivot: PIVOT_CENTER
+  pivot: PIVOT_N
   adjust_mode: ADJUST_MODE_FIT
   layer: ""
   inherit_alpha: true
@@ -186,9 +186,9 @@ nodes {
   clipping_inverted: false
   alpha: 1.0
   template_node_child: false
-  size_mode: SIZE_MODE_AUTO
+  size_mode: SIZE_MODE_MANUAL
   custom_type: 0
-  enabled: true
+  enabled: false
   visible: false
   material: ""
 }
@@ -228,7 +228,7 @@ nodes {
   texture: ""
   id: "prefab"
   xanchor: XANCHOR_NONE
-  yanchor: YANCHOR_NONE
+  yanchor: YANCHOR_BOTTOM
   pivot: PIVOT_CENTER
   adjust_mode: ADJUST_MODE_FIT
   parent: "server_list"
