@@ -112,10 +112,11 @@ function update(self, dt)
 			end
 		end
 		if changed then
-			print("[UPDATE]")
+			local message = "[UPDATE] "
 			for ip, updated_at in pairs(self.available_servers) do
-				print(ip, updated_at)
+				message = message .. ip .. ", "
 			end
+			print(message)
 			post_to_sender(self, "ip_discovery", { servers = self.available_servers })
 		end
 	end

@@ -1,4 +1,21 @@
 function init(self)
 	msg.post('.', 'acquire_input_focus')
+
+	msg.post("multiplayer", "register")
 	msg.post("virtual_gamepad", "register")
+end
+
+function on_message(self, message_id, message)
+	if message_id == hash("find_servers") then
+		msg.post("multiplayer", "find_servers")
+	elseif message_id == hash("ip_discovery") then
+		msg.post("gui", "ip_discovery", message)
+	elseif message_id == hash("connect") then
+		print("connecting to", message.ip)
+		msg.post("multiplayer", "stop_discovery")
+		msg.post("multiplayer", "connect", { ip = message.ip })
+		msg.post("virtual_gamepad", "set_enabled", { enabled = true })
+	elseif message_id == hash("analog") then
+		msg.post("multiplayer", "send_to_server", {type = "analog", data = message})
+	end
 end

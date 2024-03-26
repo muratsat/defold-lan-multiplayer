@@ -98,9 +98,9 @@ function on_message(self, message_id, message, sender)
 		self.listener = sender
 	elseif message_id == hash("unregister") then
 		self.listener = nil
-	elseif message_id == hash("enable") then
-		gui.set_enabled(gui.get_node("analog"), true)
-		gui.set_enabled(gui.get_node("analog_bg"), true)
+	elseif message_id == hash("set_enabled") then
+		gui.set_enabled(gui.get_node("analog"), message.enabled)
+		gui.set_enabled(gui.get_node("analog_bg"), message.enabled)
 	elseif message_id == hash("disable") then
 		gui.set_enabled(gui.get_node("analog"), false)
 		gui.set_enabled(gui.get_node("analog_bg"), false)
