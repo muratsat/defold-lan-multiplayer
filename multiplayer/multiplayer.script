@@ -6,105 +6,101 @@ local p2p_discovery = require "defnet.p2p_discovery"
 local DISCOVERY_PORT = 50000
 local SERVER_PORT = 6969
 
-local function post_to_sender(self, message_id, data)
-	msg.post(self.post_address, message_id, data)
+local sender_address = nil
+local function post_to_sender(message_id, data)
+	if sender_address then
+		msg.post(sender_address, message_id, data)
+	end
 end
 
-local function log(self, message)
+local function log(message)
 	print("[MULTIPLAYER]", message)
-	if self.post_address then
-		msg.post(self.post_address, "log", { data = message })
+	post_to_sender("log", { data = message })
+end
+
+local function create_server(self)
+	self.tcp_clients = {}
+	log("Creating TCP server")
+	self.tcp_server = tcp_server.create(SERVER_PORT,
+		function(data, ip, port, client)
+			post_to_sender("server_tcp_data", { from = ip, data = data })
+		end,
+		function(ip, port, client)
+			log("Client connected from " .. ip .. ":" .. port)
+			self.tcp_clients[ip] = client
+			post_to_sender("create_player", { ip = ip })
+			table.insert(self.tcp_clients, client)
+		end,
+		function(ip, port, client)
+			print("Client disconnected:", ip, port)
+			if ip == nil then
+				return
+			end
+			post_to_sender("remove_player", { ip = ip })
+			for i = 1, #self.tcp_clients do
+				if self.tcp_clients[i] == client then
+					table.remove(self.tcp_clients, i)
+				end
+			end
+		end)
+	self.tcp_server.start()
+	log("TCP server started")
+	self.p2p.broadcast("findme")
+end
+
+local function find_servers(self)
+	self.available_servers = {}
+	self.p2p.listen("findme", function(ip, port, message)
+		if self.available_servers[ip] == nil then
+			self.available_servers[ip] = os.time()
+			post_to_sender("ip_discovery", { servers = self.available_servers })
+		end
+		self.available_servers[ip] = os.time()
+	end)
+	self.p2p_listening = true
+end
+
+local function connect_to_server(self, ip)
+	local client, err = tcp_client.create(ip, SERVER_PORT,
+		function(data)
+			post_to_sender("received_from_server", { data = data })
+		end,
+		function()
+			post_to_sender("disconnected")
+			self.tcp_client = nil
+		end)
+	if client then
+		log("Connected to " .. ip)
+		self.tcp_client = client
+	else
+		log("Could not connect" .. err)
 	end
 end
 
 function init(self)
 	self.p2p = p2p_discovery.create(DISCOVERY_PORT)
-
-	self.clients = {}
-
-	self.create_server = function()
-		self.clients = {}
-		log(self, "[multiplayer] creating tcp server")
-		self.server = tcp_server.create(SERVER_PORT,
-			function(data, ip, port, client)
-				-- log(self, "TCP server received data '" .. data .. "' from " .. ip .. ":" .. port)
-				post_to_sender(self, "server_tcp_data", { from = ip, data = data })
-				-- local ok, data = pcall(json.decode, data)
-				-- if ok then
-				-- 	post_to_sender(self, "server_tcp_data", {from = ip, data = data})
-				-- end
-			end,
-			function(ip, port, client)
-				log(self, "Client connected from " .. ip .. ":" .. port)
-				self.clients[ip] = client
-				post_to_sender(self, "create_player", { ip = ip })
-				table.insert(self.clients, client)
-			end,
-			function (ip, port, client)
-				log(self, "Client discconnected from " .. ip .. ":" .. port)
-				post_to_sender(self, "remove_player", {ip = ip})
-				for i = 1, #self.clients do
-					if self.clients[i] == client then
-						table.remove(self.clients, i)
-					end
-				end
-			end)
-		self.server.start()
-		log(self, "tcp server started")
-		self.p2p.broadcast("findme")
-	end
-
-	self.find_servers = function()
-		self.available_servers = {}
-		self.p2p.listen("findme", function(ip, port, message)
-			if self.available_servers[ip] == nil then
-				self.available_servers[ip] = os.time()
-				post_to_sender(self, "ip_discovery", { servers = self.available_servers })
-			end
-			self.available_servers[ip] = os.time()
-		end)
-		self.listening = true
-	end
-
-	self.connect = function(ip)
-		local client, err = tcp_client.create(ip, SERVER_PORT,
-			function(data)
-				post_to_sender(self, "received_from_server", { data = data })
-			end,
-			function()
-				log(self, "Disconnected")
-				post_to_sender(self, "disconnected")
-				self.client = nil
-			end)
-		if client then
-			log(self, "Connected to " .. ip)
-			self.client = client
-		else
-			log(self, "Could not connect" .. err)
-		end
-	end
 end
 
 function final(self)
 	print("stopping multiplayer")
 	self.p2p.stop()
-	if self.server then
-		self.server.stop()
+	if self.tcp_server then
+		self.tcp_server.stop()
 	end
-	if self.client then
-		self.client.destroy()
+	if self.tcp_client then
+		self.tcp_client.destroy()
 	end
 end
 
 function update(self, dt)
 	self.p2p.update()
-	if self.server then
-		self.server.update()
+	if self.tcp_server then
+		self.tcp_server.update()
 	end
-	if self.client then
-		self.client.update()
+	if self.tcp_client then
+		self.tcp_client.update()
 	end
-	if self.listening then
+	if self.p2p_listening then
 		local max_seconds = 2
 		local changed = false
 		for ip, updated_at in pairs(self.available_servers) do
@@ -119,9 +115,13 @@ function update(self, dt)
 				message = message .. ip .. ", "
 			end
 			print(message)
-			post_to_sender(self, "ip_discovery", { servers = self.available_servers })
+			post_to_sender("ip_discovery", { servers = self.available_servers })
 		end
 	end
+end
+
+local function packet_string(s)
+	return string.gsub(s .. "\n", "\n\n", "\n")
 end
 
 ---@param message_string string
@@ -135,64 +135,50 @@ local function rate_limited_send(self, message_string)
 		diff = now - self.last_sent_time
 		if diff >= max_diff then
 			self.last_sent_time = now
-			self.client.send(string.gsub(message_string .. '\n', "\n\n", "\n"))
+			self.tcp_client.send(packet_string(message_string))
 		end
 	end
 end
 
-local function handle_send_to_server(self, message)
+local function send_to_server(self, message)
 	local json_data = json.encode(message.data)
-	local formatted_string = string.gsub(json_data .. '\n', "\n\n", "\n")
+	local packet = packet_string(json_data)
 
 	local is_analog_end = message.type == "analog" and message.data.x == 0 and message.data.y == 0
 	if is_analog_end then
-		self.client.send(formatted_string)
+		self.tcp_client.send(packet)
 	else
-		rate_limited_send(self, formatted_string)
+		rate_limited_send(self, packet)
 	end
 end
 
 function on_message(self, message_id, message, sender)
 	if message_id == hash("register") then
-		self.post_address = sender
-		print("register mp")
+		sender_address = sender
 	elseif message_id == hash("start_server") then
-		self.create_server()
+		create_server(self)
 	elseif message_id == hash("server_broadcast") then
-		if self.server then
-			self.server.broadcast(string.gsub(message.data .. '\n', "\n\n", "\n"))
+		if self.tcp_server then
+			self.tcp_server.broadcast(packet_string(message.data))
 		end
 	elseif message_id == hash("server_send_to_client") then
-		self.server.broadcast(string.gsub(message.data .. '\n', "\n\n", "\n"))
-		if self.clients[message.ip] then
-			self.server.send(string.gsub(message.data .. '\n', "\n\n", "\n"), self.clients[message.ip])
+		self.tcp_server.broadcast(packet_string(message.data))
+		if self.tcp_clients[message.ip] then
+			self.tcp_server.send(packet_string(message.data), self.tcp_clients[message.ip])
 		end
 	elseif message_id == hash("stop_server") then
 		self.p2p.stop()
-		if self.server then
-			self.server.stop()
+		if self.tcp_server then
+			self.tcp_server.stop()
 		end
 	elseif message_id == hash("find_servers") then
-		self.find_servers()
+		find_servers(self)
 	elseif message_id == hash("stop_discovery") then
-		self.listening = false
+		self.p2p_listening = false
 		self.p2p.stop()
 	elseif message_id == hash("connect") then
-		self.connect(message.ip)
+		connect_to_server(self, message.ip)
 	elseif message_id == hash("send_to_server") then
-		handle_send_to_server(self, message)
-	end
-end
-
-function dump(o)
-	if type(o) == 'table' then
-		local s = '{ '
-		for k, v in pairs(o) do
-			if type(k) ~= 'number' then k = '"' .. k .. '"' end
-			s = s .. '[' .. k .. '] = ' .. dump(v) .. ','
-		end
-		return s .. '} '
-	else
-		return tostring(o)
+		send_to_server(self, message)
 	end
 end
