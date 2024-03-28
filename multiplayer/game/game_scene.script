@@ -42,7 +42,7 @@ function update(self, dt)
 		if self.player_node[ip] == nil then
 			create_player(self, ip, position)
 		else
-			msg.post(self.player_node[ip], "set_position", {data = position})
+			msg.post(self.player_node[ip], "set_position", {x = position.x, y = position.y})
 		end
 	end
 end
@@ -75,4 +75,17 @@ function on_message(self, message_id, message)
 	elseif message_id == hash("set_server") then
 		self.is_server = true
 	end
+end
+
+function dump(o)
+   if type(o) == 'table' then
+      local s = '{ '
+      for k,v in pairs(o) do
+         if type(k) ~= 'number' then k = '"'..k..'"' end
+         s = s .. '['..k..'] = ' .. dump(v) .. ','
+      end
+      return s .. '} '
+   else
+      return tostring(o)
+   end
 end

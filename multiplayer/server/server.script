@@ -33,13 +33,16 @@ local function start_server(self)
 
 	msg.post("multiplayer", "start_server")
 
-	local frequency = 1
+	local frequency = 0.005
 	self.broadcast_handle = timer.delay(frequency, true, function()
 		-- print(json.encode(self.game_state.current_state()))
-		-- msg.post("multiplayer", "send_message_to_client", {
-		-- 	type = "UDP",
-		-- 	data = json.encode(self.game_state.current_state())
-		-- })
+		msg.post("multiplayer", "send_message_to_client", {
+			type = "UDP",
+			data = json.encode({
+				type = "state_update",
+				state = self.game_state.current_state()
+			})
+		})
 	end)
 
 	create_player(self, "localhost")

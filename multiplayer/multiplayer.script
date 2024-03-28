@@ -112,7 +112,8 @@ local function connect_to_udp_server(self, ip)
 		if not ok then return end
 
 		if parsed.timestamp > self.last_udp_timestamp then
-			log("UDP client received data: '" .. parsed.data .. "' at " .. parsed.timestamp)
+			-- log("UDP client received data: '" .. parsed.data .. "' at " .. parsed.timestamp)
+			post_to_sender("received_from_server", { data = parsed.data })
 			self.last_udp_timestamp = parsed.timestamp
 		end
 	end, UDP_PORT, ip, UDP_PORT)
