@@ -6,57 +6,97 @@ function init(self)
 	msg.post("virtual_gamepad", "register")
 end
 
-local function start_state_broadcast(self)
-	local broadcast_frequency = 0.02
-	self.broadcast_handle = timer.delay(broadcast_frequency, true, function()
-		-- msg.post("multiplayer", "send_message_to_client", {
-		-- 	type = "UDP",
-		-- 	data = json.encode({
-		-- 		type = "state_update",
-		-- 		data = self.game_state.current_state()
-		-- 	})
-		-- })
-	end)
+local function create_player(self, ip, position)
+	msg.post(self.game_scene, "create_player", { ip = ip, position = position })
 end
 
-local function stop_state_broadcast(self)
-	timer.cancel(self.broadcast_handle)
-	self.broadcast_handle = nil
+local function remove_player(self, ip, position)
+	msg.post(self.game_scene, "remove_player", { ip = ip, position = position })
+end
+
+local function move_player(self, ip, x, y)
+	msg.post(self.game_scene, "move_player", {
+		ip = ip,
+		data = {
+			x = x,
+			y = y
+		}
+	})
+end
+
+local function start_server(self)
+	self.game_state = game_state.create()
+	self.game_scene = factory.create("factory#factory")
+
+	msg.post("virtual_gamepad", "set_enabled", { enabled = true })
+	msg.post(self.game_scene, "set_server")
+
+	msg.post("multiplayer", "start_server")
+
+	local frequency = 1
+	self.broadcast_handle = timer.delay(frequency, true, function()
+		-- print(json.encode(self.game_state.current_state()))
+		-- msg.post("multiplayer", "send_message_to_client", {
+		-- 	type = "UDP",
+		-- 	data = json.encode(self.game_state.current_state())
+		-- })
+	end)
+
+	create_player(self, "localhost")
+end
+
+local function handle_new_client(self, ip)
+	create_player(self, ip)
+	msg.post("multiplayer", "send_message_to_client", {
+		ip = ip,
+		data = json.encode({
+			ip = ip,
+			type = "initial_state",
+			state = self.game_state.current_state()
+		})
+	})
+end
+
+local function handle_client_disconnected(self, ip)
+	remove_player(self, ip)
+	msg.post("multiplayer", "send_message_to_client", {
+		data = json.encode({
+			ip = ip,
+			type = "player_disconnected",
+		})
+	})
+end
+
+local function stop_server(self)
+	msg.post("virtual_gamepad", "set_enabled", { enabled = false })
+	msg.post("multiplayer", "stop_server")
+	if self.game_scene then
+		go.delete(self.game_scene, true)
+	end
+	if self.broadcast_handle then
+		timer.cancel(self.broadcast_handle)
+	end
 end
 
 function on_message(self, message_id, message)
+	----- Start server
 	if message_id == hash("start_server") then
-		msg.post("multiplayer", "start_server")
-		self.game_scene = factory.create("factory#factory")
-		msg.post("virtual_gamepad", "set_enabled", { enabled = true })
-		msg.post(self.game_scene, "set_server")
-		msg.post(self.game_scene, "create_player", { ip = "localhost" })
-		self.game_state = game_state.create()
-		start_state_broadcast(self)
-	elseif message_id == hash("analog") then
-		msg.post(self.game_scene, "move_player", { player = "localhost", data = message })
-	elseif message_id == hash("stop_server") then
-		msg.post("multiplayer", "stop_server")
-		stop_state_broadcast(self)
+		start_server(self)
+
+		-- Create player(new client)
 	elseif message_id == hash("client_connected") then
-		msg.post(self.game_scene, "create_player", { ip = message.ip })
-		-- msg.post("multiplayer", "send_message_to_client", { ip = message.ip, data = "welcome" })
-		msg.post("multiplayer", "send_message_to_client", {
-			ip = message.ip,
-			data = json.encode({
-				type = "initial_state",
-				state = self.game_state.current_state()
-			})
-		})
-	elseif message_id == hash("client_action") then
-		local ok, data = pcall(json.decode, message.data)
-		print(ok, data.x, data.y)
-		if ok and data.x ~= nil and data.y ~= nil then
-			msg.post(self.game_scene, "move_player", { player = message.ip, data = data })
-		end
+		handle_new_client(self, message.ip)
+
+		-- Remove player(client disconnected)
 	elseif message_id == hash("client_disconnected") then
-	elseif message_id == hash("log") then
-		-- msg.post("gui", "log", { data = message.data })
-		self.log = message.data
+		handle_client_disconnected(self, message.ip)
+
+		-- Stop server
+	elseif message_id == hash("stop_server") then
+		stop_server(self)
+
+		-- Control message from virtual_gamepad
+	elseif message_id == hash("analog") then
+		move_player(self, "localhost", message.x, message.y)
 	end
 end

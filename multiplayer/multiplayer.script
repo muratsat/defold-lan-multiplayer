@@ -63,6 +63,7 @@ local function create_server(self)
 end
 
 local function broadcast_udp(self, packet_string)
+	if not self.udp_server then return end
 	local json_data = json.encode({
 		from = "server",
 		timestamp = os.clock(),
@@ -75,6 +76,7 @@ local function broadcast_udp(self, packet_string)
 end
 
 local function broadcast_tcp(self, packet_string, receiver_ip)
+	if not self.tcp_server then return end
 	packet_string = string.gsub(packet_string .. "\n", "\n\n", "\n")
 	if receiver_ip then
 		print("sending direct message:", packet_string, "to", receiver_ip)

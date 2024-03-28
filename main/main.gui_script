@@ -1,5 +1,10 @@
 local druid = require("druid.druid")
 
+local function on_single_player_callback(self)
+    msg.post("main:/loader", "load_single_player")
+    msg.post("#", "hide")
+end
+
 local function on_host_callback(self)
     msg.post("main:/loader", "load_server")
     msg.post("#", "hide")
@@ -18,6 +23,7 @@ end
 
 function init(self)
     self.druid = druid.new(self)
+    self.single_player_button = self.druid:new_button("single_player", on_single_player_callback)
     self.host_button = self.druid:new_button("host", on_host_callback)
     self.join_button = self.druid:new_button("join", on_join_callback)
     self.back_button = self.druid:new_button("back", on_back_callback)

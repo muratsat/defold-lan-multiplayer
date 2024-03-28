@@ -1,0 +1,97 @@
+local game_state = require "multiplayer.game.game_state"
+
+function init(self)
+	msg.post("virtual_gamepad", "register")
+	self.player_count = 0
+
+	-- simulate server
+	-- self.players = {}
+	-- self.player_speed = {}
+end
+
+function fixed_update(self, dt)
+end
+
+local function broadcast_state(self)
+	local frequency = 0.3
+	self.timer_handle = timer.delay(frequency, true, function()
+		print(json.encode(self.game_state.current_state()))
+	end)
+end
+
+local function create_player(self)
+	self.player_count = self.player_count + 1
+	local ip = tostring(self.player_count)
+	local position = vmath.vector3(
+		568 + math.random(-100, 100),
+		320 + math.random(-100, 100),
+		0
+	)
+
+	local angle = math.random() * math.pi * 2
+	local magnitude = math.random() * 0.5
+	local speed = {
+		x = magnitude * math.cos(angle),
+		y = magnitude * math.sin(angle) 
+	}
+
+	-- -- as client
+	-- self.players[ip] = {
+	-- 	x = position.x,
+	-- 	y = position.y,
+	-- 	z = position.z,
+	-- }
+	-- self.player_speed[ip] = speed
+
+	-- as server
+	msg.post(self.game_scene, "create_player", { ip = ip, position = position })
+	msg.post(self.game_scene, "move_player", {
+		player = ip,
+		data = speed
+	})
+end
+
+function remove_player(self)
+	if self.player_count <= 0 then
+		return
+	end
+	local ip = tostring(self.player_count)
+	-- as server
+	msg.post(self.game_scene, "remove_player", { ip = ip })
+
+	-- as client 
+	-- self.player_speed[ip] = nil
+	-- self.players[ip] = nil
+
+	--
+	self.player_count = self.player_count - 1
+end
+
+function on_message(self, message_id, message, sender)
+	------ initialize game scene and state
+	if message_id == hash("start") then
+		msg.post("virtual_gamepad", "set_enabled", { enabled = true })
+		self.game_scene = factory.create("factory#factory")
+		self.game_state = game_state.create()
+		msg.post(self.game_scene, "set_server")
+		broadcast_state(self)
+
+		------ Create player
+	elseif message_id == hash("create_player") then
+		create_player(self)
+	elseif message_id == hash("remove_player") then
+		remove_player(self)
+
+		-- print current state
+	elseif message_id == hash("get_state") then
+		print(json.encode(self.game_state.current_state()))
+
+		------- Stop the game
+	elseif message_id == hash("stop") then
+		msg.post("virtual_gamepad", "set_enabled", { enabled = false })
+		if self.game_scene then
+			-- go.delete(self.game_scene)
+			go.delete(self.game_scene, true)
+		end
+	end
+end

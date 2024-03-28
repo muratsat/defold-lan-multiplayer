@@ -22,7 +22,7 @@ local function update_position(self, dt)
 	go.set_position(position)
 end
 
-function update(self, dt)
+function fixed_update(self, dt)
 	update_position(self, dt)
 end
 
@@ -34,9 +34,8 @@ function on_message(self, message_id, message, sender)
 		self.speed.y = message.y * acceleration_factor
 	elseif message_id == hash("set_position") then
 		local position = go.get_position()
-		position.x = message.data.x
-		position.y = message.data.y
-		position.z = message.data.z
+		position.x = message.x
+		position.y = message.y
 		go.set_position(position)
 	end
 end
