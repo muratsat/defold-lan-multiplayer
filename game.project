@@ -2,7 +2,6 @@
 title = defold-lan-multiplayer
 dependencies#0 = https://github.com/britzl/defnet/archive/master.zip
 dependencies#1 = https://github.com/Insality/druid/archive/refs/tags/0.11.0.zip
-dependencies#2 = https://github.com/Melsoft-Games/defold-cjson/archive/master.zip
 
 [bootstrap]
 main_collection = /main/main.collectionc

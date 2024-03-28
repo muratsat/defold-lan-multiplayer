@@ -58,8 +58,8 @@ function on_message(self, message_id, message)
 		print("gui - ip_discovery")
 		clear_server_list(self)
 		local count = 0
-		for ip, _ in pairs(message.servers) do
-			add_server_button(self, ip, count)
+		for i = 1, #message.servers do
+			add_server_button(self, message.servers[i], count)
 			count = count + 1
 		end
 	elseif message_id == hash("disconnected") then

@@ -21,11 +21,14 @@ function on_message(self, message_id, message)
 		msg.post("multiplayer", "stop_discovery")
 		msg.post("multiplayer", "connect", { ip = message.ip })
 		msg.post("virtual_gamepad", "set_enabled", { enabled = true })
-		local game_scene = factory.create("factory#factory", vmath.vector3(568, 320, 0))
-		self.game_scene = game_scene
+		self.game_scene = factory.create("factory#factory")
 
 	elseif message_id == hash("analog") then
-		msg.post("multiplayer", "send_to_server", {type = "analog", data = message})
+		if message.x == 0 and message.y == 0 then
+			msg.post("multiplayer", "send_message_to_server", {type = "TCP", data = json.encode(message)})
+		else
+			msg.post("multiplayer", "send_message_to_server", {type = "UDP", data = json.encode(message)})
+		end
 
 	elseif message_id == hash("disconnected") then
 		msg.post("virtual_gamepad", "set_enabled", { enabled = false })
@@ -40,12 +43,12 @@ function on_message(self, message_id, message)
 		if ok then
 			if data.type == "initial_state" then
 				self.game_state.set_state(data.state)
-			elseif data.type == "state_update" then
-				self.game_state.set_state(data.state)
-			elseif data.type == "create_player" then
-				msg.post(self.game_scene, "create_player", { ip = data.ip })
-			elseif data.type == "remove_player" then
-				msg.post(self.game_scene, "remove_player", { ip = data.ip })
+			-- elseif data.type == "state_update" then
+			-- 	self.game_state.set_state(data.state)
+			-- elseif data.type == "create_player" then
+			-- 	msg.post(self.game_scene, "create_player", { ip = data.ip })
+			-- elseif data.type == "remove_player" then
+			-- 	msg.post(self.game_scene, "remove_player", { ip = data.ip })
 			end
 		end
 

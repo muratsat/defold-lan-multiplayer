@@ -4,37 +4,18 @@ function init(self)
 	msg.post('.', 'acquire_input_focus')
 	msg.post("multiplayer", "register")
 	msg.post("virtual_gamepad", "register")
-
-	self.players = {}
-	self.player_node = {}
-
-	self.game_state = game_state.create()
 end
-
----@param table_to_send table
-local function broadcast_to_all(table_to_send)
-	msg.post("multiplayer", "server_broadcast", { data = json.encode(table_to_send) })
-end
-
----@param ip string
----@param table_to_send table
-local function broadcast_to_ip(ip, table_to_send)
-	msg.post("multiplayer", "server_send_to_client", { data = json.encode(table_to_send), ip = ip })
-end
-
 
 local function start_state_broadcast(self)
-	local broadcast_frequency = 0.01
+	local broadcast_frequency = 0.02
 	self.broadcast_handle = timer.delay(broadcast_frequency, true, function()
-		for player_ip, _ in pairs(self.players) do
-			local node_id = self.player_node[player_ip]
-			self.players[player_ip].position = go.get_position(node_id)
-			-- local player_json = json.encode(self.players[player_ip])
-		end
-		broadcast_to_all({
-			type = "state_update",
-			state = self.game_state.current_state()
-		})
+		-- msg.post("multiplayer", "send_message_to_client", {
+		-- 	type = "UDP",
+		-- 	data = json.encode({
+		-- 		type = "state_update",
+		-- 		data = self.game_state.current_state()
+		-- 	})
+		-- })
 	end)
 end
 
@@ -46,53 +27,36 @@ end
 function on_message(self, message_id, message)
 	if message_id == hash("start_server") then
 		msg.post("multiplayer", "start_server")
-		local game_scene = factory.create("factory#factory", vmath.vector3(568, 320, 0))
-		self.game_scene = game_scene
-		msg.post(self.game_scene, "set_server")
-		start_state_broadcast(self)
+		self.game_scene = factory.create("factory#factory")
 		msg.post("virtual_gamepad", "set_enabled", { enabled = true })
-
+		msg.post(self.game_scene, "set_server")
 		msg.post(self.game_scene, "create_player", { ip = "localhost" })
-		broadcast_to_all({
-			type = "create_player",
-			ip = "localhost"
-		})
-
+		self.game_state = game_state.create()
+		start_state_broadcast(self)
+	elseif message_id == hash("analog") then
+		msg.post(self.game_scene, "move_player", { player = "localhost", data = message })
 	elseif message_id == hash("stop_server") then
 		msg.post("multiplayer", "stop_server")
 		stop_state_broadcast(self)
-		if self.game_scene then
-			go.delete(self.game_scene)
-		end
-		msg.post("virtual_gamepad", "set_enabled", { enabled = false })
-
-	elseif message_id == hash("create_player") then
-		if self.game_scene then
-			msg.post(self.game_scene, "create_player", { ip = message.ip })
-			broadcast_to_ip(message.ip, {
+	elseif message_id == hash("client_connected") then
+		msg.post(self.game_scene, "create_player", { ip = message.ip })
+		-- msg.post("multiplayer", "send_message_to_client", { ip = message.ip, data = "welcome" })
+		msg.post("multiplayer", "send_message_to_client", {
+			ip = message.ip,
+			data = json.encode({
 				type = "initial_state",
 				state = self.game_state.current_state()
 			})
-			broadcast_to_all({
-				type = "create_player",
-				ip = message.ip
-			})
-		end
-	elseif message_id == hash("remove_player") then
-		if self.game_scene then
-			msg.post(self.game_scene, "remove_player", { ip = message.ip })
-			broadcast_to_all({
-				type = "remove_player",
-				ip = message.ip
-			})
-		end
-	elseif message_id == hash("server_tcp_data") then
+		})
+	elseif message_id == hash("client_action") then
 		local ok, data = pcall(json.decode, message.data)
-		if ok then
-			msg.post(self.game_scene, "move_player", { player = message.from, data = data })
+		print(ok, data.x, data.y)
+		if ok and data.x ~= nil and data.y ~= nil then
+			msg.post(self.game_scene, "move_player", { player = message.ip, data = data })
 		end
-
-	elseif message_id == hash("analog") then
-		msg.post(self.game_scene, "move_player", { player = "localhost", data = message})
+	elseif message_id == hash("client_disconnected") then
+	elseif message_id == hash("log") then
+		-- msg.post("gui", "log", { data = message.data })
+		self.log = message.data
 	end
 end

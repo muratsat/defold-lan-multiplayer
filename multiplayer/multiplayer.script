@@ -1,184 +1,264 @@
-local tcp_server = require "defnet.tcp_server"
-local tcp_client = require "defnet.tcp_client"
-
-local p2p_discovery = require "defnet.p2p_discovery"
-
-local DISCOVERY_PORT = 50000
-local SERVER_PORT = 6969
-
 local sender_address = nil
-local function post_to_sender(message_id, data)
+
+local function post_to_sender(message_id, message_table)
 	if sender_address then
-		msg.post(sender_address, message_id, data)
+		msg.post(sender_address, message_id, message_table)
 	end
 end
-
-local function log(message)
-	print("[MULTIPLAYER]", message)
-	post_to_sender("log", { data = message })
+local function log(message_string)
+	post_to_sender("log", { data = message_string })
+	print("[MULTIPLAYER]", message_string)
 end
 
+
+local udp = require "defnet.udp"
+local tcp_server = require "defnet.tcp_server"
+local tcp_client = require "defnet.tcp_client"
+local p2p_discovery = require "defnet.p2p_discovery"
+local UDP_PORT = 9379
+local TCP_PORT = 9673
+local DISCOVERY_PORT = 50000
+
 local function create_server(self)
-	self.tcp_clients = {}
-	log("Creating TCP server")
-	self.tcp_server = tcp_server.create(SERVER_PORT,
+	self.last_client_packet = {}
+
+	self.udp_server = udp.create(function(data, peer_ip, peer_port)
+		local ok, parsed = pcall(json.decode, data)
+		if not ok then return end
+		ok = parsed.data ~= nil and parsed.timestamp ~= nil and parsed.from == "client"
+		if not ok then return end
+
+		if self.last_client_packet[peer_ip] == nil then
+			self.last_client_packet[peer_ip] = parsed.timestamp
+			log("UDP server received data: " .. parsed.data .. " from " .. peer_ip .. ":" .. peer_port)
+			post_to_sender("client_action", { ip = peer_ip, data = parsed.data })
+		end
+		if parsed.timestamp > self.last_client_packet[peer_ip] then
+			self.last_client_packet[peer_ip] = parsed.timestamp
+			log("UDP server received data: " .. parsed.data .. " from " .. peer_ip .. ":" .. peer_port)
+			post_to_sender("client_action", { ip = peer_ip, data = parsed.data })
+		end
+	end, UDP_PORT)
+
+	self.tcp_server = tcp_server.create(TCP_PORT,
 		function(data, ip, port, client)
-			post_to_sender("server_tcp_data", { from = ip, data = data })
+			log("TCP server recieved data: " .. data .. " from " .. ip)
+			post_to_sender("client_action", { ip = ip, data = data })
 		end,
 		function(ip, port, client)
-			log("Client connected from " .. ip .. ":" .. port)
-			self.tcp_clients[ip] = client
-			post_to_sender("create_player", { ip = ip })
-			table.insert(self.tcp_clients, client)
+			self.clients[ip] = client
+			log("TCP client connected: " .. ip)
+			post_to_sender("client_connected", { ip = ip })
 		end,
 		function(ip, port, client)
-			print("Client disconnected:", ip, port)
-			if ip == nil then
-				return
+			if ip then
+				post_to_sender("client_disconnected", { ip = ip })
+				self.clients[ip] = nil
 			end
-			post_to_sender("remove_player", { ip = ip })
-			for i = 1, #self.tcp_clients do
-				if self.tcp_clients[i] == client then
-					table.remove(self.tcp_clients, i)
-				end
-			end
-		end)
+		end
+	)
 	self.tcp_server.start()
-	log("TCP server started")
+
 	self.p2p.broadcast("findme")
 end
 
-local function find_servers(self)
-	self.available_servers = {}
-	self.p2p.listen("findme", function(ip, port, message)
-		if self.available_servers[ip] == nil then
-			self.available_servers[ip] = os.time()
-			post_to_sender("ip_discovery", { servers = self.available_servers })
-		end
-		self.available_servers[ip] = os.time()
-	end)
-	self.p2p_listening = true
+local function broadcast_udp(self, packet_string)
+	local json_data = json.encode({
+		from = "server",
+		timestamp = os.clock(),
+		data = packet_string
+	})
+
+	for ip, _ in pairs(self.clients) do
+		self.udp_server.send(json_data, ip, UDP_PORT)
+	end
 end
 
-local function connect_to_server(self, ip)
-	local client, err = tcp_client.create(ip, SERVER_PORT,
+local function broadcast_tcp(self, packet_string, receiver_ip)
+	packet_string = string.gsub(packet_string .. "\n", "\n\n", "\n")
+	if receiver_ip then
+		print("sending direct message:", packet_string, "to", receiver_ip)
+		self.tcp_server.send(packet_string, self.clients[receiver_ip])
+	else
+		print("sending to all :", packet_string)
+		self.tcp_server.broadcast(packet_string)
+	end
+end
+
+local function connect_to_tcp_server(self, ip)
+	local client, err = tcp_client.create(ip, TCP_PORT,
 		function(data)
+			log("TCP client received data: " .. data)
 			post_to_sender("received_from_server", { data = data })
 		end,
 		function()
-			post_to_sender("disconnected")
-			self.tcp_client = nil
-		end)
+			post_to_sender("client_disconnected")
+		end
+	)
 	if client then
-		log("Connected to " .. ip)
 		self.tcp_client = client
-	else
-		log("Could not connect" .. err)
 	end
+end
+
+local function connect_to_udp_server(self, ip)
+	self.last_udp_timestamp = 0
+	self.udp_client = udp.create(function(data, peer_ip, peer_port)
+		if peer_ip ~= ip then return end
+		local ok, parsed = pcall(json.decode, data)
+		if not ok then return end
+		ok = parsed.timestamp ~= nil and parsed.data ~= nil
+		if not ok then return end
+
+		if parsed.timestamp > self.last_udp_timestamp then
+			log("UDP client received data: '" .. parsed.data .. "' at " .. parsed.timestamp)
+			self.last_udp_timestamp = parsed.timestamp
+		end
+	end, UDP_PORT, ip, UDP_PORT)
+end
+
+local function create_client(self, ip)
+	self.p2p.stop()
+	self.listening = false
+	self.server_ip = ip
+
+	connect_to_udp_server(self, ip)
+	connect_to_tcp_server(self, ip)
+end
+
+local function send_udp_to_server(self, packet_string)
+	if self.last_sent_time == nil then
+		self.last_sent_time = os.clock()
+	end
+
+	local max_diff = 0.04
+	local diff = os.clock() - self.last_sent_time
+
+	if diff >= max_diff then
+		self.last_sent_time = os.clock()
+		local json_data = json.encode({
+			from = "client",
+			timestamp = self.last_sent_time,
+			data = packet_string
+		})
+		self.udp_client.send(json_data)
+	end
+end
+
+local function send_tcp_to_server(self, packet_string)
+	packet_string = string.gsub(packet_string .. "\n", "\n\n", "\n")
+	self.tcp_client.send(packet_string)
+end
+
+local function get_server_list(self)
+	local server_list = {}
+	for ip, _ in pairs(self.available_servers) do
+		table.insert(server_list, ip)
+	end
+	return server_list
+end
+
+local function find_servers(self)
+	self.listening = true
+	self.p2p.listen("findme", function(ip, port)
+		local is_new = self.available_servers[ip] == nil
+		self.available_servers[ip] = os.time()
+		if is_new then
+			post_to_sender("ip_discovery", { servers = get_server_list(self) })
+		end
+	end)
 end
 
 function init(self)
+	self.clients = {}
+	self.available_servers = {}
 	self.p2p = p2p_discovery.create(DISCOVERY_PORT)
 end
 
-function final(self)
-	print("stopping multiplayer")
+local function stop(self)
 	self.p2p.stop()
+	if self.udp_server then
+		self.udp_server.destroy()
+		self.udp_server = nil
+	end
 	if self.tcp_server then
 		self.tcp_server.stop()
+		self.tcp_server = nil
+	end
+	if self.udp_client then
+		self.udp_client.destroy()
+		self.udp_client = nil
 	end
 	if self.tcp_client then
 		self.tcp_client.destroy()
+		self.tcp_client = nil
+	end
+end
+
+function final(self)
+	stop(self)
+end
+
+local function update_discovery(self)
+	self.p2p.update()
+	if not self.listening then
+		return
+	end
+	local changed = false
+	local max_seconds = 2
+
+	for ip, updated_at in pairs(self.available_servers) do
+		if os.time() - updated_at >= max_seconds then
+			self.available_servers[ip] = nil
+			changed = true
+		end
+	end
+
+	if changed then
+		post_to_sender("ip_discovery", { servers = get_server_list(self) })
 	end
 end
 
 function update(self, dt)
-	self.p2p.update()
+	update_discovery(self)
+	if self.udp_server then
+		self.udp_server.update()
+	end
+	if self.udp_client then
+		self.udp_client.update()
+	end
 	if self.tcp_server then
 		self.tcp_server.update()
 	end
 	if self.tcp_client then
 		self.tcp_client.update()
 	end
-	if self.p2p_listening then
-		local max_seconds = 2
-		local changed = false
-		for ip, updated_at in pairs(self.available_servers) do
-			if os.time() - updated_at >= max_seconds then
-				self.available_servers[ip] = nil
-				changed = true
-			end
-		end
-		if changed then
-			local message = "[UPDATE] "
-			for ip, updated_at in pairs(self.available_servers) do
-				message = message .. ip .. ", "
-			end
-			print(message)
-			post_to_sender("ip_discovery", { servers = self.available_servers })
-		end
-	end
-end
-
-local function packet_string(s)
-	return string.gsub(s .. "\n", "\n\n", "\n")
-end
-
----@param message_string string
-local function rate_limited_send(self, message_string)
-	local max_diff = 0.01
-	local diff = max_diff
-	if self.last_sent_time == nil then
-		self.last_sent_time = os.clock()
-	else
-		local now = os.clock()
-		diff = now - self.last_sent_time
-		if diff >= max_diff then
-			self.last_sent_time = now
-			self.tcp_client.send(packet_string(message_string))
-		end
-	end
-end
-
-local function send_to_server(self, message)
-	local json_data = json.encode(message.data)
-	local packet = packet_string(json_data)
-
-	local is_analog_end = message.type == "analog" and message.data.x == 0 and message.data.y == 0
-	if is_analog_end then
-		self.tcp_client.send(packet)
-	else
-		rate_limited_send(self, packet)
-	end
 end
 
 function on_message(self, message_id, message, sender)
 	if message_id == hash("register") then
 		sender_address = sender
+		---Server
 	elseif message_id == hash("start_server") then
 		create_server(self)
-	elseif message_id == hash("server_broadcast") then
-		if self.tcp_server then
-			self.tcp_server.broadcast(packet_string(message.data))
+	elseif message_id == hash("send_message_to_client") then
+		if message.type == "UDP" then
+			broadcast_udp(self, message.data)
+		else
+			broadcast_tcp(self, message.data, message.ip)
 		end
-	elseif message_id == hash("server_send_to_client") then
-		self.tcp_server.broadcast(packet_string(message.data))
-		if self.tcp_clients[message.ip] then
-			self.tcp_server.send(packet_string(message.data), self.tcp_clients[message.ip])
-		end
-	elseif message_id == hash("stop_server") then
-		self.p2p.stop()
-		if self.tcp_server then
-			self.tcp_server.stop()
-		end
+		-- Client
 	elseif message_id == hash("find_servers") then
 		find_servers(self)
-	elseif message_id == hash("stop_discovery") then
-		self.p2p_listening = false
-		self.p2p.stop()
 	elseif message_id == hash("connect") then
-		connect_to_server(self, message.ip)
-	elseif message_id == hash("send_to_server") then
-		send_to_server(self, message)
+		create_client(self, message.ip)
+	elseif message_id == hash("send_message_to_server") then
+		if message.type == "UDP" then
+			send_udp_to_server(self, message.data)
+		else
+			send_tcp_to_server(self, message.data)
+		end
+		-- stop
+	elseif message_id == hash("stop_server") or message_id == hash("stop_client") then
+		stop(self)
 	end
 end
