@@ -30,19 +30,19 @@ local function create_server(self)
 
 		if self.last_client_packet[peer_ip] == nil then
 			self.last_client_packet[peer_ip] = parsed.timestamp
-			log("UDP server received data: " .. parsed.data .. " from " .. peer_ip .. ":" .. peer_port)
+			-- log("UDP server received data: " .. parsed.data .. " from " .. peer_ip .. ":" .. peer_port)
 			post_to_sender("client_action", { ip = peer_ip, data = parsed.data })
 		end
 		if parsed.timestamp > self.last_client_packet[peer_ip] then
 			self.last_client_packet[peer_ip] = parsed.timestamp
-			log("UDP server received data: " .. parsed.data .. " from " .. peer_ip .. ":" .. peer_port)
+			-- log("UDP server received data: " .. parsed.data .. " from " .. peer_ip .. ":" .. peer_port)
 			post_to_sender("client_action", { ip = peer_ip, data = parsed.data })
 		end
 	end, UDP_PORT)
 
 	self.tcp_server = tcp_server.create(TCP_PORT,
 		function(data, ip, port, client)
-			log("TCP server recieved data: " .. data .. " from " .. ip)
+			-- log("TCP server recieved data: " .. data .. " from " .. ip)
 			post_to_sender("client_action", { ip = ip, data = data })
 		end,
 		function(ip, port, client)

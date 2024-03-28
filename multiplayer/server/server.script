@@ -15,6 +15,8 @@ local function remove_player(self, ip, position)
 end
 
 local function move_player(self, ip, x, y)
+	if x == nil then x = 0 end
+	if y == nil then y = 0 end
 	msg.post(self.game_scene, "move_player", {
 		ip = ip,
 		data = {
@@ -60,6 +62,15 @@ local function handle_new_client(self, ip)
 	})
 end
 
+local function handle_client_action(self, ip, data)
+	local ok, parsed = pcall(json.decode, data)
+	if not ok then return end
+
+	if parsed.action == "movement" then
+		move_player(self, ip, parsed.x, parsed.y)
+	end
+end
+
 local function handle_client_disconnected(self, ip)
 	remove_player(self, ip)
 	msg.post("multiplayer", "send_message_to_client", {
@@ -89,6 +100,10 @@ function on_message(self, message_id, message)
 		-- Create player(new client)
 	elseif message_id == hash("client_connected") then
 		handle_new_client(self, message.ip)
+
+		-- Client actions
+	elseif message_id == hash("client_action") then
+		handle_client_action(self, message.ip, message.data)
 
 		-- Remove player(client disconnected)
 	elseif message_id == hash("client_disconnected") then
