@@ -34,7 +34,7 @@ function update(self, dt)
 	end
 
 	for ip, p in pairs(self.game_state.current_state()) do
-		-- print(ip, json.encode(p))
+		-- print(ip, cjson.encode(p))
 		if self.player_node[ip] == nil then
 			create_player(self, ip, vmath.vector3(p.position.x, p.position.y, p.position.z))
 		end

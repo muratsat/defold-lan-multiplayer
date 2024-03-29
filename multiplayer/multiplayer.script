@@ -23,7 +23,7 @@ local function create_server(self)
 	self.last_client_packet = {}
 
 	self.udp_server = udp.create(function(data, peer_ip, peer_port)
-		local ok, parsed = pcall(json.decode, data)
+		local ok, parsed = pcall(cjson.decode, data)
 		if not ok then return end
 		ok = parsed.data ~= nil and parsed.timestamp ~= nil and parsed.from == "client"
 		if not ok then return end
@@ -64,14 +64,14 @@ end
 
 local function broadcast_udp(self, packet_string)
 	if not self.udp_server then return end
-	local json_data = json.encode({
+	local cjson_data = cjson.encode({
 		from = "server",
 		timestamp = os.clock(),
 		data = packet_string
 	})
 
 	for ip, _ in pairs(self.clients) do
-		self.udp_server.send(json_data, ip, UDP_PORT)
+		self.udp_server.send(cjson_data, ip, UDP_PORT)
 	end
 end
 
@@ -106,7 +106,7 @@ local function connect_to_udp_server(self, ip)
 	self.last_udp_timestamp = 0
 	self.udp_client = udp.create(function(data, peer_ip, peer_port)
 		if peer_ip ~= ip then return end
-		local ok, parsed = pcall(json.decode, data)
+		local ok, parsed = pcall(cjson.decode, data)
 		if not ok then return end
 		ok = parsed.timestamp ~= nil and parsed.data ~= nil
 		if not ok then return end
@@ -138,12 +138,12 @@ local function send_udp_to_server(self, packet_string)
 
 	if diff >= max_diff then
 		self.last_sent_time = os.clock()
-		local json_data = json.encode({
+		local cjson_data = cjson.encode({
 			from = "client",
 			timestamp = self.last_sent_time,
 			data = packet_string
 		})
-		self.udp_client.send(json_data)
+		self.udp_client.send(cjson_data)
 	end
 end
 

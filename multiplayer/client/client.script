@@ -25,7 +25,7 @@ local function remove_player(self, ip)
 end
 
 local function process_incoming_data(self, packet_string)
-	local ok, parsed = pcall(json.decode, packet_string)
+	local ok, parsed = pcall(cjson.decode, packet_string)
 	if not ok then return end
 
 	if parsed.type == "initial_state" then
@@ -47,7 +47,7 @@ local function send_movement_to_server(self, x, y)
 	local socket_type = use_tcp and "TCP" or "UDP"
 	msg.post("multiplayer", "send_message_to_server", {
 		type = socket_type,
-		data = json.encode({
+		data = cjson.encode({
 			action = "movement",
 			x = x,
 			y = y

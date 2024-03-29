@@ -29,10 +29,10 @@ local function start_server(self)
 
 	local frequency = 0.005
 	self.broadcast_handle = timer.delay(frequency, true, function()
-		-- print(json.encode(self.game_state.current_state()))
+		-- print(cjson.encode(self.game_state.current_state()))
 		msg.post("multiplayer", "send_message_to_client", {
 			type = "UDP",
-			data = json.encode({
+			data = cjson.encode({
 				type = "state_update",
 				state = self.game_state.current_state()
 			})
@@ -46,7 +46,7 @@ local function handle_new_client(self, ip)
 	create_player(self, ip)
 	msg.post("multiplayer", "send_message_to_client", {
 		ip = ip,
-		data = json.encode({
+		data = cjson.encode({
 			ip = ip,
 			type = "initial_state",
 			state = self.game_state.current_state()
@@ -55,7 +55,7 @@ local function handle_new_client(self, ip)
 end
 
 local function handle_client_action(self, ip, data)
-	local ok, parsed = pcall(json.decode, data)
+	local ok, parsed = pcall(cjson.decode, data)
 	if not ok then return end
 
 	if parsed.action == "movement" then
@@ -66,7 +66,7 @@ end
 local function handle_client_disconnected(self, ip)
 	remove_player(self, ip)
 	msg.post("multiplayer", "send_message_to_client", {
-		data = json.encode({
+		data = cjson.encode({
 			ip = ip,
 			type = "player_disconnected",
 		})
