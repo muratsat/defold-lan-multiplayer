@@ -1,19 +1,18 @@
 local game_state = require "multiplayer.game.game_state"
 
 local function create_player(self, ip, position)
-	print("create player", ip, "with position", position)
 	local default_position = vmath.vector3(568, 320, 0)
 	if position == nil then
 		position = default_position
 	end
 	self.players[ip] = {
-			x = position.x,
-			y = position.y,
-			z = position.y
+		x = position.x,
+		y = position.y,
+		z = position.z,
 	}
+
 	local node_id = factory.create("#player_factory", position)
 	self.player_node[ip] = node_id
-	self.game_state.set_state(self.players)
 end
 
 function init(self)
@@ -23,26 +22,30 @@ function init(self)
 	self.player_node = {}
 end
 
+local function update_positions(self)
+end
+
 function update(self, dt)
-	if self.is_server then
-		for ip, _ in pairs(self.players) do
-			local position =  go.get_position(self.player_node[ip])
-			self.players[ip] = {
-				x = position.x,
-				y = position.y,
-				z = position.z
-			}
+	for ip, _ in pairs(self.game_state.to_remove()) do
+		print("removing player", ip)
+		if self.player_node[ip] then
+			go.delete(self.player_node[ip])
+			self.player_node[ip] = nil
+			self.game_state.check_as_removed(ip)
 		end
-		self.game_state.set_state(self.players)
-		return
 	end
 
 	for ip, p in pairs(self.game_state.current_state()) do
-		local position = vmath.vector3(p.x, p.y, p.z)
 		if self.player_node[ip] == nil then
-			create_player(self, ip, position)
+			create_player(self, ip, vmath.vector3(p.position.x, p.position.y, p.position.z))
+		end
+
+		if self.is_server then
+			msg.post(self.player_node[ip], "move", { velocity = p.velocity })
+			local node_position = go.get_position(self.player_node[ip])
+			self.game_state.set_position(node_position)
 		else
-			msg.post(self.player_node[ip], "set_position", {x = position.x, y = position.y})
+			msg.post(self.player_node[ip], "set_position", { position = p.position })
 		end
 	end
 end
@@ -54,38 +57,7 @@ function final(self)
 end
 
 function on_message(self, message_id, message)
-	if message_id == hash("create_player") then
-		create_player(self, message.ip, message.position)
-
-	elseif message_id == hash("remove_player") then
-		print("remove player", message.ip)
-		if self.player_node[message.ip] then
-			go.delete(self.player_node[message.ip])
-		end
-		self.players[message.ip] = nil
-		self.player_node[message.ip] = nil
-
-	elseif message_id == hash("move_player") then
-		local player = self.players[message.ip]
-		local node_id = self.player_node[message.ip]
-		if player and node_id and message.data.x and message.data.y then
-			msg.post(node_id, "move", message.data)
-		end
-
-	elseif message_id == hash("set_server") then
+	if message_id == hash("set_server") then
 		self.is_server = true
 	end
-end
-
-function dump(o)
-   if type(o) == 'table' then
-      local s = '{ '
-      for k,v in pairs(o) do
-         if type(k) ~= 'number' then k = '"'..k..'"' end
-         s = s .. '['..k..'] = ' .. dump(v) .. ','
-      end
-      return s .. '} '
-   else
-      return tostring(o)
-   end
 end

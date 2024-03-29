@@ -1,12 +1,9 @@
-local game_state = require "multiplayer.game.game_state"
-
 function init(self)
 	msg.post('.', 'acquire_input_focus')
 
 	msg.post("multiplayer", "register")
 	msg.post("virtual_gamepad", "register")
 
-	self.game_state = game_state.create()
 end
 
 local function connect(self, ip)
@@ -18,7 +15,7 @@ local function connect(self, ip)
 end
 
 local function remove_player(self, ip)
-	if self.game_scene then
+	if self.game_scene and ip then
 		msg.post(self.game_scene, "remove_player", { ip = ip, })
 	end
 end
@@ -27,12 +24,18 @@ local function process_incoming_data(self, packet_string)
 	local ok, parsed = pcall(json.decode, packet_string)
 	if not ok then return end
 
-	local is_state = parsed.state ~= nil and (parsed.type == "initial_state" or  parsed.type == "state_update")
-	if is_state then
-		self.game_state.set_state(parsed.state)
-	elseif parsed.type == "player_disconnected" and parsed.ip then
+	if parsed.type == "initial_state" then
+		msg.post(self.game_scene, "set_state", {state = parsed.state})
+		self.ip = parsed.ip
+		--
+	-- elseif parsed.type == "state_update" then
+	-- 	msg.post(self.game_scene, "set_state", {state = parsed.state})
+		-- 
+	elseif parsed.type == "player_disconnected" then
+		print("Player disconnected:", parsed.ip)
 		remove_player(self, parsed.ip)
 	end
+
 end
 
 local function send_movement_to_server(self, x, y)
@@ -78,6 +81,5 @@ function on_message(self, message_id, message)
 		-- local virtual gamepad
 	elseif message_id == hash("analog") then
 		send_movement_to_server(self, message.x, message.y)
-	elseif message_id == hash("log") then
 	end
 end

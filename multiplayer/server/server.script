@@ -7,25 +7,15 @@ function init(self)
 end
 
 local function create_player(self, ip, position)
-	msg.post(self.game_scene, "create_player", { ip = ip, position = position })
+	self.game_state.create_player(ip, position)
 end
 
 local function remove_player(self, ip)
-	if self.game_scene then
-		msg.post(self.game_scene, "remove_player", { ip = ip, })
-	end
+	self.game_state.remove_player(ip)
 end
 
-local function move_player(self, ip, x, y)
-	if x == nil then x = 0 end
-	if y == nil then y = 0 end
-	msg.post(self.game_scene, "move_player", {
-		ip = ip,
-		data = {
-			x = x,
-			y = y
-		}
-	})
+local function move_player(self, ip, velocity)
+	self.game_state.move_player(ip, velocity)
 end
 
 local function start_server(self)
@@ -69,7 +59,7 @@ local function handle_client_action(self, ip, data)
 	if not ok then return end
 
 	if parsed.action == "movement" then
-		move_player(self, ip, parsed.x, parsed.y)
+		move_player(self, ip, vmath.vector3(parsed.x, parsed.y, 0))
 	end
 end
 
@@ -117,6 +107,6 @@ function on_message(self, message_id, message)
 
 		-- Control message from virtual_gamepad
 	elseif message_id == hash("analog") then
-		move_player(self, "localhost", message.x, message.y)
+		move_player(self, "localhost", message)
 	end
 end

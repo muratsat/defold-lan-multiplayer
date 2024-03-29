@@ -1,12 +1,12 @@
 function init(self)
-	self.speed = vmath.vector3()
+	self.velocity = vmath.vector3()
 end
 
 
 local function update_position(self, dt)
 	local position = go.get_position()
-	local x = position.x + self.speed.x * dt
-	local y = position.y + self.speed.y * dt
+	local x = position.x + self.velocity.x * dt
+	local y = position.y + self.velocity.y * dt
 
 	-- local x_ok = -1000 < x and x < 1000
 	-- if x_ok then
@@ -30,12 +30,12 @@ end
 function on_message(self, message_id, message, sender)
 	if message_id == hash("move") then
 		local acceleration_factor = 500
-		self.speed.x = message.x * acceleration_factor
-		self.speed.y = message.y * acceleration_factor
+		self.velocity.x = message.velocity.x * acceleration_factor
+		self.velocity.y = message.velocity.y * acceleration_factor
 	elseif message_id == hash("set_position") then
 		local position = go.get_position()
-		position.x = message.x
-		position.y = message.y
+		position.x = message.position.x
+		position.y = message.position.y
 		go.set_position(position)
 	end
 end
