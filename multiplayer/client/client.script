@@ -17,6 +17,12 @@ local function connect(self, ip)
 	self.game_scene = factory.create("factory#factory")
 end
 
+local function remove_player(self, ip)
+	if self.game_scene then
+		msg.post(self.game_scene, "remove_player", { ip = ip, })
+	end
+end
+
 local function process_incoming_data(self, packet_string)
 	local ok, parsed = pcall(json.decode, packet_string)
 	if not ok then return end
@@ -24,6 +30,8 @@ local function process_incoming_data(self, packet_string)
 	local is_state = parsed.state ~= nil and (parsed.type == "initial_state" or  parsed.type == "state_update")
 	if is_state then
 		self.game_state.set_state(parsed.state)
+	elseif parsed.type == "player_disconnected" and parsed.ip then
+		remove_player(self, parsed.ip)
 	end
 end
 

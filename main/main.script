@@ -9,15 +9,11 @@ function on_message(self, message_id, message, sender)
 		print("load server")
 		self.current_proxy = "loader#server_proxy"
 		msg.post(self.current_proxy, "load")
-	elseif message_id == hash("load_single_player") then
-		print("load single player")
-		self.current_proxy = "loader#single_player_proxy"
-		msg.post(self.current_proxy, "load")
 	elseif message_id == hash("load_client") then
 		print("load client")
 		self.current_proxy = "loader#client_proxy"
 		msg.post(self.current_proxy, "load")
-    elseif message_id == hash("proxy_loaded") then              -- [2]
+    elseif message_id == hash("proxy_loaded") then
         msg.post(sender, "init")
         msg.post(sender, "enable")
 	elseif message_id == hash("back_to_main") then

@@ -10,8 +10,10 @@ local function create_player(self, ip, position)
 	msg.post(self.game_scene, "create_player", { ip = ip, position = position })
 end
 
-local function remove_player(self, ip, position)
-	msg.post(self.game_scene, "remove_player", { ip = ip, position = position })
+local function remove_player(self, ip)
+	if self.game_scene then
+		msg.post(self.game_scene, "remove_player", { ip = ip, })
+	end
 end
 
 local function move_player(self, ip, x, y)
