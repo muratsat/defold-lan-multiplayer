@@ -1,4 +1,5 @@
 local game_state = require "multiplayer.game.game_state"
+local camera = require "orthographic.camera"
 
 function init(self)
 	msg.post('.', 'acquire_input_focus')
@@ -14,6 +15,7 @@ local function connect(self, ip)
 	msg.post("multiplayer", "connect", { ip = ip })
 	msg.post("virtual_gamepad", "set_enabled", { enabled = true })
 	self.game_scene = factory.create("factory#factory")
+	msg.post(self.game_scene, "register")
 	self.game_state = game_state.create()
 end
 
@@ -62,6 +64,16 @@ local function handle_disconnected(self)
 	end
 end
 
+local function setup_camera(self, follow_target)
+	msg.post("/camera#script", camera.MSG_FOLLOW, {
+		target = follow_target,
+		lerp = self.lerp,
+		offset = self.camera_offset,
+		horizontal = self.follow_horizontal,
+		vertical = self.follow_vertical,
+	})
+end
+
 function on_message(self, message_id, message)
 	if message_id == hash("find_servers") then
 		msg.post("multiplayer", "find_servers")
@@ -85,5 +97,11 @@ function on_message(self, message_id, message)
 		-- local virtual gamepad
 	elseif message_id == hash("analog") then
 		send_movement_to_server(self, message.x, message.y)
+		-- setup camera
+	elseif message_id == hash("player_spawned") then
+		print("Spawned:", message.ip, message.node_id)
+		if message.ip == self.ip and not self.camera_following then
+			setup_camera(self, message.node_id)
+		end
 	end
 end

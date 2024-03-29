@@ -14,6 +14,9 @@ local function create_player(self, ip, position)
 
 	local node_id = factory.create("#player_factory", position)
 	self.player_node[ip] = node_id
+	if self.parent_collection then
+		msg.post(self.parent_collection, "player_spawned", {ip = ip, node_id = node_id})
+	end
 end
 
 function init(self)
@@ -39,8 +42,8 @@ function update(self, dt)
 			create_player(self, ip, vmath.vector3(p.position.x, p.position.y, p.position.z))
 		end
 
+		msg.post(self.player_node[ip], "move", { velocity = p.velocity })
 		if self.is_server then
-			msg.post(self.player_node[ip], "move", { velocity = p.velocity })
 			local node_position = go.get_position(self.player_node[ip])
 			self.game_state.set_position(ip, node_position)
 		else
@@ -55,8 +58,10 @@ function final(self)
 	end
 end
 
-function on_message(self, message_id, message)
+function on_message(self, message_id, message, sender)
 	if message_id == hash("set_server") then
 		self.is_server = true
+	elseif message_id == hash("register") then
+		self.parent_collection = sender
 	end
 end

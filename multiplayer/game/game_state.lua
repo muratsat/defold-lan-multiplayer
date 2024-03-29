@@ -31,7 +31,8 @@ function M.create()
 
     function instance.create_player(ip, position)
         if not position then
-            local default_position = vmath.vector3(568, 320, 0)
+            -- local default_position = vmath.vector3(568, 320, 0)
+            local default_position = vmath.vector3(0, 0, 0)
             position = default_position
         end
 

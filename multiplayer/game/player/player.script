@@ -2,23 +2,44 @@ function init(self)
 	self.velocity = vmath.vector3()
 end
 
+local function get_animation(self)
+	if vmath.length(self.velocity) == 0 then
+		return "idle"
+	end
+
+	local vertical = math.abs(self.velocity.y) > math.abs(self.velocity.x)
+	if vertical then
+		if self.velocity.y > 0 then return "up" else return "down" end
+	end
+
+	if self.velocity.x > 0 then return "right" else return "left" end
+end
+
+local function update_animation(self)
+	local current_animation = go.get("#sprite", "animation")
+	local new_animation = get_animation(self)
+	if current_animation ~= hash(new_animation) and new_animation ~= "idle" then
+		msg.post("#sprite", "play_animation", { id = hash(get_animation(self)) })
+	end
+end
+
 
 local function update_position(self, dt)
 	local position = go.get_position()
 	local x = position.x + self.velocity.x * dt
 	local y = position.y + self.velocity.y * dt
 
-	-- local x_ok = -1000 < x and x < 1000
-	-- if x_ok then
-	-- 	position.x = x
-	-- end
-	-- local y_ok = -500 < y and y < 400
-	-- if y_ok then
-	-- 	position.y = y
-	-- end
+	local x_ok = -1000 < x and x < 1000
+	if x_ok then
+		position.x = x
+	end
+	local y_ok = -500 < y and y < 400
+	if y_ok then
+		position.y = y
+	end
 
-	position.x = x
-	position.y = y
+	-- position.x = x
+	-- position.y = y
 	go.set_position(position)
 end
 
@@ -32,6 +53,7 @@ function on_message(self, message_id, message, sender)
 		local acceleration_factor = 500
 		self.velocity.x = message.velocity.x * acceleration_factor
 		self.velocity.y = message.velocity.y * acceleration_factor
+		update_animation(self)
 	elseif message_id == hash("set_position") then
 		local position = go.get_position()
 		position.x = message.position.x
