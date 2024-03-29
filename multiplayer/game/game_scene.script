@@ -1,6 +1,7 @@
 local game_state = require "multiplayer.game.game_state"
 
 local function create_player(self, ip, position)
+	print("Creating player", ip, position)
 	local default_position = vmath.vector3(568, 320, 0)
 	if position == nil then
 		position = default_position
@@ -22,9 +23,6 @@ function init(self)
 	self.player_node = {}
 end
 
-local function update_positions(self)
-end
-
 function update(self, dt)
 	for ip, _ in pairs(self.game_state.to_remove()) do
 		print("removing player", ip)
@@ -36,6 +34,7 @@ function update(self, dt)
 	end
 
 	for ip, p in pairs(self.game_state.current_state()) do
+		-- print(ip, json.encode(p))
 		if self.player_node[ip] == nil then
 			create_player(self, ip, vmath.vector3(p.position.x, p.position.y, p.position.z))
 		end
@@ -43,7 +42,7 @@ function update(self, dt)
 		if self.is_server then
 			msg.post(self.player_node[ip], "move", { velocity = p.velocity })
 			local node_position = go.get_position(self.player_node[ip])
-			self.game_state.set_position(node_position)
+			self.game_state.set_position(ip, node_position)
 		else
 			msg.post(self.player_node[ip], "set_position", { position = p.position })
 		end

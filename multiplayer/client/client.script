@@ -1,3 +1,5 @@
+local game_state = require "multiplayer.game.game_state"
+
 function init(self)
 	msg.post('.', 'acquire_input_focus')
 
@@ -12,11 +14,13 @@ local function connect(self, ip)
 	msg.post("multiplayer", "connect", { ip = ip })
 	msg.post("virtual_gamepad", "set_enabled", { enabled = true })
 	self.game_scene = factory.create("factory#factory")
+	self.game_state = game_state.create()
 end
 
 local function remove_player(self, ip)
-	if self.game_scene and ip then
-		msg.post(self.game_scene, "remove_player", { ip = ip, })
+	if self.game_state and ip then
+		-- msg.post(self.game_scene, "remove_player", { ip = ip, })
+		self.game_state.remove_player(ip)
 	end
 end
 
@@ -25,11 +29,11 @@ local function process_incoming_data(self, packet_string)
 	if not ok then return end
 
 	if parsed.type == "initial_state" then
-		msg.post(self.game_scene, "set_state", {state = parsed.state})
 		self.ip = parsed.ip
+		self.game_state.set_state(parsed.state)
 		--
-	-- elseif parsed.type == "state_update" then
-	-- 	msg.post(self.game_scene, "set_state", {state = parsed.state})
+	elseif parsed.type == "state_update" then
+		self.game_state.set_state(parsed.state)
 		-- 
 	elseif parsed.type == "player_disconnected" then
 		print("Player disconnected:", parsed.ip)
