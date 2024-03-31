@@ -21,7 +21,7 @@ instances {
 }
 instances {
   id: "camera"
-  prototype: "/.defold/assets/orthographic/camera.go"
+  prototype: "/orthographic/camera.go"
   position {
     x: 0.0
     y: 0.0
@@ -36,24 +36,9 @@ instances {
   component_properties {
     id: "script"
     properties {
-      id: "zoom"
-      value: "1.5"
-      type: PROPERTY_TYPE_NUMBER
-    }
-    properties {
       id: "projection"
       value: "FIXED_AUTO"
       type: PROPERTY_TYPE_HASH
-    }
-    properties {
-      id: "follow"
-      value: "false"
-      type: PROPERTY_TYPE_BOOLEAN
-    }
-    properties {
-      id: "follow_lerp"
-      value: "0.1"
-      type: PROPERTY_TYPE_NUMBER
     }
     properties {
       id: "bounds_left"
@@ -62,7 +47,7 @@ instances {
     }
     properties {
       id: "bounds_bottom"
-      value: "-600.0"
+      value: "-660.0"
       type: PROPERTY_TYPE_NUMBER
     }
     properties {
@@ -72,7 +57,7 @@ instances {
     }
     properties {
       id: "bounds_top"
-      value: "666.0"
+      value: "673.0"
       type: PROPERTY_TYPE_NUMBER
     }
   }
